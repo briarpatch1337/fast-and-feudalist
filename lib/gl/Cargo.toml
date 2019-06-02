@@ -1,0 +1,13 @@
+[package]
+name = "gl"
+version = "0.1.0"
+authors = ["briarpatch1337 <briarpatch1337@gmail.com>"]
+edition = "2018"
+
+[features]
+debug = []
+
+[dependencies]
+
+[build-dependencies]
+gl_generator = "0.9.0"

@@ -1,0 +1,18 @@
+[package]
+name = "fast-and-feudalist"
+version = "0.1.0"
+authors = ["briarpatch1337 <briarpatch1337@gmail.com>"]
+
+[features]
+gl_debug = ["gl/debug"]
+
+[dependencies]
+gl = { path = "lib/gl" }
+
+[dependencies.sdl2]
+version = "0.31.0"
+features = ["bundled", "static-link"]
+
+[build-dependencies]
+walkdir = "2.1"
+
