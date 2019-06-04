@@ -164,6 +164,69 @@ fn draw_point(gl: &gl::Gl, shader_program: &render_gl::Program) {
     }
 }
 
+
+fn draw_hexagon(gl: &gl::Gl, shader_program: &render_gl::Program) {
+    shader_program.set_used();
+
+    let hexagon_width = 1_f32;
+    let hexagon_height = 3_f32.sqrt() / 2_f32;
+
+    let vertices: Vec<f32> = vec![
+        0.0, 0.0, 0.0,                                1.0, 1.0, 1.0,
+        hexagon_width/2.0, 0.0, 0.0,                  1.0, 1.0, 1.0,
+        hexagon_width/4.0, -hexagon_height/2.0, 0.0,  1.0, 1.0, 1.0,
+        -hexagon_width/4.0, -hexagon_height/2.0, 0.0, 1.0, 1.0, 1.0,
+        -hexagon_width/2.0, 0.0, 0.0,                 1.0, 1.0, 1.0,
+        -hexagon_width/4.0, hexagon_height/2.0, 0.0,  1.0, 1.0, 1.0,
+        hexagon_width/4.0, hexagon_height/2.0, 0.0,   1.0, 1.0, 1.0,
+        hexagon_width/2.0, 0.0, 0.0,                  1.0, 1.0, 1.0,
+    ];
+    let mut vbo: gl::types::GLuint = 0;
+    unsafe {
+        gl.GenBuffers(1, &mut vbo);
+    }
+    unsafe {
+        gl.BindBuffer(gl::ARRAY_BUFFER, vbo);
+    gl.BufferData(
+        gl::ARRAY_BUFFER,
+        (vertices.len() * std::mem::size_of::<f32>()) as gl::types::GLsizeiptr,
+        vertices.as_ptr() as *const gl::types::GLvoid,
+        gl::STATIC_DRAW
+    );
+    }
+    let mut vao: gl::types::GLuint = 0;
+    unsafe {
+        gl.GenVertexArrays(1, &mut vao);
+        gl.BindVertexArray(vao);
+        gl.VertexAttribPointer(
+            0,
+            3,
+            gl::FLOAT,
+            gl::FALSE,
+            (6 * std::mem::size_of::<f32>()) as gl::types::GLint,
+            std::ptr::null()
+        );
+        gl.EnableVertexAttribArray(0);
+        gl.VertexAttribPointer(
+            1,
+            3,
+            gl::FLOAT,
+            gl::FALSE,
+            (6 * std::mem::size_of::<f32>()) as gl::types::GLint,
+            (3 * std::mem::size_of::<f32>()) as *const gl::types::GLvoid
+        );
+        gl.EnableVertexAttribArray(1);
+    }
+    unsafe {
+        gl.DrawArrays(
+            gl::TRIANGLE_FAN, // mode
+            0, // starting index in the enabled arrays
+            8 // number of indices to be rendered
+        );
+    }
+}
+
+
 fn write_rotate_data(gl: &gl::Gl, shader_program: &render_gl::Program, rotation_angle: f32) {
     let transform_data = glm::mat4(
         rotation_angle.cos(), -rotation_angle.sin(), 0.0, 0.0,
@@ -176,6 +239,7 @@ fn write_rotate_data(gl: &gl::Gl, shader_program: &render_gl::Program, rotation_
         gl.ProgramUniformMatrix4fv(shader_program.id(), rotate_loc, 1, gl::FALSE, transform_data.as_array().as_ptr() as *const gl::types::GLfloat);
     }
 }
+
 
 fn write_scale_data(gl: &gl::Gl, shader_program: &render_gl::Program, aspect_ratio: f32) {
     // aspect_ratio is W/H
@@ -363,6 +427,7 @@ fn main() {
         }
 
         // Draw
+        draw_hexagon(&gl, &shader_program);
         draw_triangle(&gl, &shader_program);
         draw_point(&gl, &shader_program);
 
