@@ -19,20 +19,20 @@ pub struct Program {
 impl Program {
     pub fn from_res(gl: &gl::Gl, res: &Resources, name: &str) -> Result<Program, Error> {
         const POSSIBLE_EXT: [&str; 2] = [
-	    ".vert",
-	    ".frag",
-	];
+            ".vert",
+            ".frag",
+        ];
 
-	let shaders = POSSIBLE_EXT.iter()
-	    .map(|file_extension| {
-	        Shader::from_res(gl, res, &format!("{}{}", name, file_extension))
-	    })
+        let shaders = POSSIBLE_EXT.iter()
+            .map(|file_extension| {
+                Shader::from_res(gl, res, &format!("{}{}", name, file_extension))
+            })
             .collect::<Result<Vec<Shader>, Error>>()?;
 
-	Program::from_shaders(gl, &shaders[..]).map_err(|message| Error::LinkError {
-	    name: name.into(),
-	    message,
-	})
+        Program::from_shaders(gl, &shaders[..]).map_err(|message| Error::LinkError {
+            name: name.into(),
+            message,
+        })
     }
 
     pub fn from_shaders(gl: &gl::Gl, shaders: &[Shader]) -> Result<Program, String> {
@@ -111,25 +111,25 @@ pub struct Shader {
 impl Shader {
     pub fn from_res(gl: &gl::Gl, res: &Resources, name: &str) -> Result<Shader, Error> {
         const POSSIBLE_EXT: [(&str, gl::types::GLenum); 2] = [
-	    (".vert", gl::VERTEX_SHADER),
-	    (".frag", gl::FRAGMENT_SHADER),
-	];
+        (".vert", gl::VERTEX_SHADER),
+        (".frag", gl::FRAGMENT_SHADER),
+    ];
 
-	let shader_kind = POSSIBLE_EXT.iter()
-	    .find(|&&(file_extension, _)| {
-	        name.ends_with(file_extension)
+    let shader_kind = POSSIBLE_EXT.iter()
+        .find(|&&(file_extension, _)| {
+            name.ends_with(file_extension)
             })
-	    .map(|&(_, kind)| kind)
-	    .ok_or_else(|| Error::CanNotDetermineShaderTypeForResource { name: name.into() })?;
+        .map(|&(_, kind)| kind)
+        .ok_or_else(|| Error::CanNotDetermineShaderTypeForResource { name: name.into() })?;
 
-	let source = res.load_cstring(name).map_err(|e| Error::ResourceLoad {
-	    name: name.into(),
-	    inner:e
-	})?;
-	
-	Shader::from_source(gl, &source, shader_kind).map_err(|message| Error::CompileError {
-	    name: name.into(),
-	    message,
+    let source = res.load_cstring(name).map_err(|e| Error::ResourceLoad {
+        name: name.into(),
+        inner:e
+    })?;
+
+    Shader::from_source(gl, &source, shader_kind).map_err(|message| Error::CompileError {
+        name: name.into(),
+        message,
         })
     }
 
@@ -140,7 +140,7 @@ impl Shader {
     ) -> Result<Shader, String> {
 
         // The ? at the end of this statement means that if shader_from_source returns an error,
-	// this function will return an error.
+    // this function will return an error.
         let id = shader_from_source(&gl, source, kind)?;
 
         Ok(Shader { gl: gl.clone(), id })

@@ -17,11 +17,14 @@ out VS_OUTPUT {
    vec3 Color;
 } OUT;
 
+uniform vec4 scale;
+uniform mat4 rotate;
+
 void main()
 {
     // At the end of the main function, whatever we set gl_Position to
     // will be used as the output of the vertex shader
-    gl_Position = vec4(Position, 1.0);
+    gl_Position = vec4(Position, 1.0) * rotate * scale;
 
     OUT.Color = Color;
 }

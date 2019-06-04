@@ -15,6 +15,8 @@ extern crate gl;
 // SDL provides exported functions that implement the OpenGL spec.
 extern crate sdl2;
 
+extern crate glm;
+
 // Working around what seems like a bug in one of our dependencies (or build toolchain)
 #[link(name = "shell32")]
 extern { }
@@ -33,6 +35,169 @@ pub mod resources;
 
 use resources::Resources;
 use std::path::Path;
+
+
+fn draw_triangle(gl: &gl::Gl, shader_program: &render_gl::Program) {
+    // Activate this program
+    shader_program.set_used();
+
+    let triangle_width = 1_f32;
+    let triangle_height = 3_f32.sqrt() / 2_f32;
+
+    // Some vertices for our triangle
+    let vertices: Vec<f32> = vec![
+    //  positions                                                  colors
+    //  x                      y                            z      r    g    b
+        triangle_width/2_f32,  -triangle_height/3_f32,      0.0,   1.0, 0.0, 0.0,   // bottom right
+        -triangle_width/2_f32, -triangle_height/3_f32,      0.0,   0.0, 1.0, 0.0,   // bottom left
+        0.0,                   triangle_height/3_f32*2_f32, 0.0,   0.0, 0.0, 1.0    // top
+    ];
+
+    // Vertex buffer object (VBO)
+    let mut vbo: gl::types::GLuint = 0;
+    unsafe {
+        gl.GenBuffers(1, &mut vbo);
+    }
+
+    // bind the newly created buffer to the GL_ARRAY_BUFFER target
+    // Copy data to it
+    // This data is accessible to the shader program
+    unsafe {
+        gl.BindBuffer(gl::ARRAY_BUFFER, vbo);
+        gl.BufferData(
+            gl::ARRAY_BUFFER, // target
+            (vertices.len() * std::mem::size_of::<f32>()) as gl::types::GLsizeiptr, // size of data in bytes
+            vertices.as_ptr() as *const gl::types::GLvoid, // pointer to data
+            gl::STATIC_DRAW, // usage
+        );
+    }
+
+    // Vertex array object (VAO)
+    // Describes how to interpret the data in vertices and converts it to inputs for our vertex shader
+    // See vertex shader source to see how this is used by the program
+
+    let mut vao: gl::types::GLuint = 0;
+
+    unsafe {
+        gl.GenVertexArrays(1, &mut vao);
+        gl.BindVertexArray(vao);
+
+        // position attribute values
+        gl.VertexAttribPointer(
+            0, // index of the generic vertex attribute ("layout (location = 0)")
+            3, // the number of components per generic vertex attribute
+            gl::FLOAT, // data type
+            gl::FALSE, // not normalized (doesn't apply to floats anyways, only ints and bytes)
+            (6 * std::mem::size_of::<f32>()) as gl::types::GLint, // stride (byte offset between consecutive attribute values)
+            std::ptr::null() // offset of the first component
+        );
+        gl.EnableVertexAttribArray(0); // enable attribute at index/location 0
+
+        // color attribute values
+        gl.VertexAttribPointer(
+            1,
+            3,
+            gl::FLOAT,
+            gl::FALSE,
+            (6 * std::mem::size_of::<f32>()) as gl::types::GLint,
+            (3 * std::mem::size_of::<f32>()) as *const gl::types::GLvoid
+        );
+        gl.EnableVertexAttribArray(1);
+    }
+    unsafe {
+        gl.DrawArrays(
+            gl::TRIANGLES, // mode
+            0, // starting index in the enabled arrays
+            3 // number of indices to be rendered
+        );
+    }
+}
+
+
+fn draw_point(gl: &gl::Gl, shader_program: &render_gl::Program) {
+    shader_program.set_used();
+    let vertices: Vec<f32> = vec![
+        0.0, 0.0, 0.0, 1.0, 1.0, 1.0
+    ];
+    let mut vbo: gl::types::GLuint = 0;
+    unsafe {
+        gl.GenBuffers(1, &mut vbo);
+    }
+    unsafe {
+        gl.BindBuffer(gl::ARRAY_BUFFER, vbo);
+    gl.BufferData(
+        gl::ARRAY_BUFFER,
+        (vertices.len() * std::mem::size_of::<f32>()) as gl::types::GLsizeiptr,
+        vertices.as_ptr() as *const gl::types::GLvoid,
+        gl::STATIC_DRAW
+    );
+    }
+    let mut vao: gl::types::GLuint = 0;
+    unsafe {
+        gl.GenVertexArrays(1, &mut vao);
+        gl.BindVertexArray(vao);
+        gl.VertexAttribPointer(
+            0,
+            3,
+            gl::FLOAT,
+            gl::FALSE,
+            (6 * std::mem::size_of::<f32>()) as gl::types::GLint,
+            std::ptr::null()
+        );
+        gl.EnableVertexAttribArray(0);
+        gl.VertexAttribPointer(
+            1,
+            3,
+            gl::FLOAT,
+            gl::FALSE,
+            (6 * std::mem::size_of::<f32>()) as gl::types::GLint,
+            (3 * std::mem::size_of::<f32>()) as *const gl::types::GLvoid
+        );
+        gl.EnableVertexAttribArray(1);
+    }
+    unsafe {
+        gl.DrawArrays(
+            gl::POINTS, // mode
+            0, // starting index in the enabled arrays
+            1 // number of indices to be rendered
+        );
+    }
+}
+
+fn write_rotate_data(gl: &gl::Gl, shader_program: &render_gl::Program, rotation_angle: f32) {
+    let transform_data = glm::mat4(
+        rotation_angle.cos(), -rotation_angle.sin(), 0.0, 0.0,
+        rotation_angle.sin(), rotation_angle.cos(), 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+        0.0, 0.0, 0.0, 1.0);
+
+    unsafe {
+        let rotate_loc = gl.GetUniformLocation(shader_program.id(), std::ffi::CString::new("rotate").unwrap().as_ptr());
+        gl.ProgramUniformMatrix4fv(shader_program.id(), rotate_loc, 1, gl::FALSE, transform_data.as_array().as_ptr() as *const gl::types::GLfloat);
+    }
+}
+
+fn write_scale_data(gl: &gl::Gl, shader_program: &render_gl::Program, aspect_ratio: f32) {
+    // aspect_ratio is W/H
+    let mut x_scale = 1_f32;
+    let mut y_scale = 1_f32;
+    if aspect_ratio >= 1.0 {
+        x_scale = 1.0 / aspect_ratio;
+    } else {
+        y_scale = aspect_ratio;
+    }
+
+    let transform_data = glm::vec4(
+        x_scale,
+        y_scale,
+        1.0,
+        1.0);
+
+    unsafe {
+        let scale_loc = gl.GetUniformLocation(shader_program.id(), std::ffi::CString::new("scale").unwrap().as_ptr());
+        gl.ProgramUniform4fv(shader_program.id(), scale_loc, 1, transform_data.as_array().as_ptr() as *const gl::types::GLfloat);
+    }
+}
 
 //
 // Main function
@@ -113,90 +278,69 @@ fn main() {
         gl.ClearColor(0.0, 0.0, 0.0, 1.0); // black, fully opaque
     }
 
+    // SDL_GetTicks
+    let mut timer_subsystem = sdl.timer().unwrap();
+
+    struct AudioEngine {
+        sample_number: u128
+    }
+
+    impl sdl2::audio::AudioCallback for AudioEngine {
+        type Channel = f32;
+
+        // For now, this just generates a 440 Hz square wave beep (100 ms long) every second.
+        fn callback(&mut self, out: &mut [f32]) {
+            for x in out.iter_mut() {
+                if self.sample_number % 44100 < 4410 {
+                    if (self.sample_number % 44100) % (44100/440) <= (44100/880) {
+                        *x = 0.05;
+                    } else {
+                        *x = -0.05;
+                    }
+                } else {
+                    *x = 0.0;
+                }
+                self.sample_number = self.sample_number + 1;
+            }
+        }
+    }
+
+    // SDL_AudioInit
+    let audio_subsystem = sdl.audio().unwrap();
+    let desired_spec = sdl2::audio::AudioSpecDesired {
+        freq: Some(44100),
+        channels: Some(1), //mono
+        samples: None // device default sample buffer size
+    };
+
+    let audio_device = audio_subsystem.open_playback(None, &desired_spec, |_spec| {
+        AudioEngine {
+        sample_number: 0
+    }
+    }).unwrap();
+
+    println!("Audio device buffer size: {} samples", audio_device.spec().samples);
+
+    audio_device.resume();
+
     // Obtains the SDL event pump.
     // At most one EventPump is allowed to be alive during the program's execution. If this function is called while an EventPump instance is alive, the function will return an error.
-    
+
     let mut event_pump = sdl.event_pump().unwrap();
 
     // render_gl is a different module in this project with helper functions.  See render_gl.rs .
-
-    // include_str will embed the contents of a file in our program (at compile time)
-
     // Compile and link a program with shaders that match this file name
-    let shader_program = render_gl::Program::from_res(&gl, &res, "shaders/triangle").unwrap();
+    let shader_program = render_gl::Program::from_res(&gl, &res, "shaders/basic").unwrap();
+    write_scale_data(&gl, &shader_program, aspect_ratio);
 
-    // Activate this program
-    shader_program.set_used();
+    let rotation_rate = 0.5_f32;
+    let frames_per_second = 60;
 
-    let triangle_width = 2_f32 / aspect_ratio;
-    let triangle_height = 3_f32.sqrt();
-
-    // Some vertices for our triangle
-    let vertices: Vec<f32> = vec![
-        // positions                                    colors
-	//                  x                        y     z      r    g    b
-         triangle_width/2_f32,  -triangle_height/2_f32,  0.0,   1.0, 0.0, 0.0,   // bottom right
-        -triangle_width/2_f32,  -triangle_height/2_f32,  0.0,   0.0, 1.0, 0.0,   // bottom left
-                          0.0,   triangle_height/2_f32,  0.0,   0.0, 0.0, 1.0    // top
-    ];
-
-    // Vertex buffer object (VBO)
-    let mut vbo: gl::types::GLuint = 0;
-    unsafe {
-        gl.GenBuffers(1, &mut vbo);
-    }
-
-    // bind the newly created buffer to the GL_ARRAY_BUFFER target
-    // Copy data to it
-    // This data is accessible to the shader program
-    unsafe {
-        gl.BindBuffer(gl::ARRAY_BUFFER, vbo);
-        gl.BufferData(
-            gl::ARRAY_BUFFER, // target
-            (vertices.len() * std::mem::size_of::<f32>()) as gl::types::GLsizeiptr, // size of data in bytes
-            vertices.as_ptr() as *const gl::types::GLvoid, // pointer to data
-            gl::STATIC_DRAW, // usage
-        );
-    }
-
-    // Vertex array object (VAO)
-    // Describes how to interpret the data in vertices and converts it to inputs for our vertex shader
-    // See vertex shader source to see how this is used by the program
-
-    let mut vao: gl::types::GLuint = 0;
-
-    unsafe {
-        gl.GenVertexArrays(1, &mut vao);
-	gl.BindVertexArray(vao);
-
-	// position attribute values
-        gl.VertexAttribPointer(
-            0, // index of the generic vertex attribute ("layout (location = 0)")
-            3, // the number of components per generic vertex attribute
-            gl::FLOAT, // data type
-            gl::FALSE, // not normalized (doesn't apply to floats anyways, only ints and bytes)
-            (6 * std::mem::size_of::<f32>()) as gl::types::GLint, // stride (byte offset between consecutive attribute values)
-            std::ptr::null() // offset of the first component
-        );
-        gl.EnableVertexAttribArray(0); // enable attribute at index/location 0
-
-        // color attribute values
-        gl.VertexAttribPointer(
-            1,
-            3,
-            gl::FLOAT,
-            gl::FALSE,
-            (6 * std::mem::size_of::<f32>()) as gl::types::GLint,
-            (3 * std::mem::size_of::<f32>()) as *const gl::types::GLvoid
-        );
-        gl.EnableVertexAttribArray(1);
-
-
-    }
+    let mut frame_count: u32 = 0;
+    let mut frame_time: u32 = 0;
 
     // Loop with label 'main (exited by the break 'main statement)
     'main: loop {
-
         // Catch up on every event in the event_pump
         // See documentation for SDL_Event.
         for event in event_pump.poll_iter() {
@@ -207,23 +351,37 @@ fn main() {
             }
         }
 
-        // No more events to handle.
+        // No more events to handle
+
+        // Update triangle rotation transform data
+        let rotation_angle = frame_time as f32 / 1000.0 * 2.0 * std::f32::consts::PI * rotation_rate;
+        write_rotate_data(&gl, &shader_program, rotation_angle);
 
         // Clear the color buffer.
         unsafe {
             gl.Clear(gl::COLOR_BUFFER_BIT);
         }
 
-	// Draw
-	unsafe {
-            gl.DrawArrays(
-                gl::TRIANGLES, // mode
-                0, // starting index in the enabled arrays
-                3 // number of indices to be rendered
-            );
-	}   
+        // Draw
+        draw_triangle(&gl, &shader_program);
+        draw_point(&gl, &shader_program);
 
         // Swap the window pixels with what we have just rendered
         window.gl_swap_window();
+
+
+        // Frame rate control
+        let tick_count: u32 = timer_subsystem.ticks();
+        let prev_frame_count = frame_count;
+        frame_count = (tick_count as f32 * frames_per_second as f32 / 1000_f32) as u32 + 1;
+        frame_time = frame_count * 1000 / frames_per_second;
+        if frame_count - prev_frame_count > 1 {
+            println!("{:?}: Dropped {} frame(s)", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(), frame_count - 1 - prev_frame_count);
+        }
+        let time_left: i32 = frame_time as i32 - tick_count as i32;
+        if time_left > 0 {
+            let sleep_duration = std::time::Duration::from_millis(time_left as u64);
+            std::thread::sleep(sleep_duration);
+        }
     }
 }
