@@ -26,8 +26,8 @@ fn main() {
         ).unwrap();
     } else {
         registry.write_bindings(
-	    StructGenerator,
-	    &mut file_gl
-	).unwrap();    
+        StructGenerator,
+        &mut file_gl
+    ).unwrap();
     }
 }

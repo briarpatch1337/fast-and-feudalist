@@ -9,6 +9,7 @@ gl_debug = ["gl/debug"]
 [dependencies]
 gl = { path = "lib/gl" }
 glm = "0.2.3"
+rand = "0.5"
 
 [dependencies.sdl2]
 version = "0.31.0"

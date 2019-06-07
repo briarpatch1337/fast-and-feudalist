@@ -16,6 +16,7 @@ extern crate gl;
 extern crate sdl2;
 
 extern crate glm;
+extern crate rand;
 
 // Working around what seems like a bug in one of our dependencies (or build toolchain)
 #[link(name = "shell32")]
@@ -110,6 +111,8 @@ fn draw_triangle(gl: &gl::Gl, shader_program: &render_gl::Program) {
             0, // starting index in the enabled arrays
             3 // number of indices to be rendered
         );
+        gl.DeleteVertexArrays(1, &mut vao);
+        gl.DeleteBuffers(1, &mut vbo);
     }
 }
 
@@ -125,12 +128,12 @@ fn draw_point(gl: &gl::Gl, shader_program: &render_gl::Program) {
     }
     unsafe {
         gl.BindBuffer(gl::ARRAY_BUFFER, vbo);
-    gl.BufferData(
-        gl::ARRAY_BUFFER,
-        (vertices.len() * std::mem::size_of::<f32>()) as gl::types::GLsizeiptr,
-        vertices.as_ptr() as *const gl::types::GLvoid,
-        gl::STATIC_DRAW
-    );
+        gl.BufferData(
+            gl::ARRAY_BUFFER,
+            (vertices.len() * std::mem::size_of::<f32>()) as gl::types::GLsizeiptr,
+            vertices.as_ptr() as *const gl::types::GLvoid,
+            gl::STATIC_DRAW
+        );
     }
     let mut vao: gl::types::GLuint = 0;
     unsafe {
@@ -161,25 +164,50 @@ fn draw_point(gl: &gl::Gl, shader_program: &render_gl::Program) {
             0, // starting index in the enabled arrays
             1 // number of indices to be rendered
         );
+        gl.DeleteVertexArrays(1, &mut vao);
+        gl.DeleteBuffers(1, &mut vbo);
     }
 }
 
 
-fn draw_hexagon(gl: &gl::Gl, shader_program: &render_gl::Program) {
+struct ColorSpec {
+    r: u8,
+    g: u8,
+    b: u8
+}
+
+struct PositionSpec {
+    x: f32,
+    y: f32
+}
+
+struct HexagonSpec {
+    color: ColorSpec,
+    pos: PositionSpec
+}
+
+
+fn draw_hexagon(gl: &gl::Gl, shader_program: &render_gl::Program, hex_spec: HexagonSpec) {
     shader_program.set_used();
 
-    let hexagon_width = 1_f32;
-    let hexagon_height = 3_f32.sqrt() / 2_f32;
+    let hexagon_width = 1_f32/10_f32;
+    let hexagon_height = 3_f32.sqrt()/20_f32;
+    let x_pos = hex_spec.pos.x;
+    let y_pos = hex_spec.pos.y;
+    let r_color = hex_spec.color.r as f32 / 255.0;
+    let g_color = hex_spec.color.g as f32 / 255.0;
+    let b_color = hex_spec.color.b as f32 / 255.0;
 
+    //TODO the positioning additions can move to the GPU.
     let vertices: Vec<f32> = vec![
-        0.0, 0.0, 0.0,                                1.0, 1.0, 1.0,
-        hexagon_width/2.0, 0.0, 0.0,                  1.0, 1.0, 1.0,
-        hexagon_width/4.0, -hexagon_height/2.0, 0.0,  1.0, 1.0, 1.0,
-        -hexagon_width/4.0, -hexagon_height/2.0, 0.0, 1.0, 1.0, 1.0,
-        -hexagon_width/2.0, 0.0, 0.0,                 1.0, 1.0, 1.0,
-        -hexagon_width/4.0, hexagon_height/2.0, 0.0,  1.0, 1.0, 1.0,
-        hexagon_width/4.0, hexagon_height/2.0, 0.0,   1.0, 1.0, 1.0,
-        hexagon_width/2.0, 0.0, 0.0,                  1.0, 1.0, 1.0,
+        x_pos, y_pos, 0.0,                                          r_color, g_color, b_color,
+        x_pos + hexagon_width/2.0, y_pos, 0.0,                      r_color, g_color, b_color,
+        x_pos + hexagon_width/4.0, y_pos - hexagon_height/2.0, 0.0, r_color, g_color, b_color,
+        x_pos - hexagon_width/4.0, y_pos - hexagon_height/2.0, 0.0, r_color, g_color, b_color,
+        x_pos - hexagon_width/2.0, y_pos, 0.0,                      r_color, g_color, b_color,
+        x_pos - hexagon_width/4.0, y_pos + hexagon_height/2.0, 0.0, r_color, g_color, b_color,
+        x_pos + hexagon_width/4.0, y_pos + hexagon_height/2.0, 0.0, r_color, g_color, b_color,
+        x_pos + hexagon_width/2.0, y_pos, 0.0,                      r_color, g_color, b_color,
     ];
     let mut vbo: gl::types::GLuint = 0;
     unsafe {
@@ -187,12 +215,12 @@ fn draw_hexagon(gl: &gl::Gl, shader_program: &render_gl::Program) {
     }
     unsafe {
         gl.BindBuffer(gl::ARRAY_BUFFER, vbo);
-    gl.BufferData(
-        gl::ARRAY_BUFFER,
-        (vertices.len() * std::mem::size_of::<f32>()) as gl::types::GLsizeiptr,
-        vertices.as_ptr() as *const gl::types::GLvoid,
-        gl::STATIC_DRAW
-    );
+        gl.BufferData(
+            gl::ARRAY_BUFFER,
+            (vertices.len() * std::mem::size_of::<f32>()) as gl::types::GLsizeiptr,
+            vertices.as_ptr() as *const gl::types::GLvoid,
+            gl::STATIC_DRAW
+        );
     }
     let mut vao: gl::types::GLuint = 0;
     unsafe {
@@ -223,7 +251,75 @@ fn draw_hexagon(gl: &gl::Gl, shader_program: &render_gl::Program) {
             0, // starting index in the enabled arrays
             8 // number of indices to be rendered
         );
+        gl.DeleteVertexArrays(1, &mut vao);
+        gl.DeleteBuffers(1, &mut vbo);
     }
+}
+
+
+#[derive(Copy,Clone)]
+enum GameBoardSpaceType
+{
+    Void,
+    Water,
+    Mountain,
+    Forest,
+    Plains,
+    Field
+}
+
+
+impl rand::distributions::Distribution<GameBoardSpaceType> for rand::distributions::Standard {
+    fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> GameBoardSpaceType {
+        match rng.gen_range(0, 5) {
+            0 => GameBoardSpaceType::Water,
+            1 => GameBoardSpaceType::Mountain,
+            2 => GameBoardSpaceType::Forest,
+            3 => GameBoardSpaceType::Plains,
+            _ => GameBoardSpaceType::Field,
+        }
+    }
+}
+
+fn draw_game_board_space(gl: &gl::Gl, shader_program: &render_gl::Program, space_type: GameBoardSpaceType, x_pos: u8, y_pos: u8) {
+    //    let hexagon_width = 1_f32/10_f32;
+    //    let hexagon_height = 3_f32.sqrt()/20_f32;
+
+    let x_pos_translated = (x_pos as f32 - 7.0) * 0.75 / 10.0;
+    let mut y_pos_translated = (y_pos as f32 - 7.0) * 3_f32.sqrt() / 20.0;
+
+    if x_pos % 2 == 0 {
+        y_pos_translated += 3_f32.sqrt() / 40_f32;
+    }
+
+    let r_color: u8;
+    let g_color: u8;
+    let b_color: u8;
+
+    match space_type {
+        GameBoardSpaceType::Void => {
+            r_color = 0x00; g_color = 0x00; b_color = 0x00;
+        }
+        GameBoardSpaceType::Water => {
+            r_color = 0x00; g_color = 0x00; b_color = 0x80;
+        }
+        GameBoardSpaceType::Mountain => {
+            r_color = 0x80; g_color = 0x80; b_color = 0x80;
+        }
+        GameBoardSpaceType::Forest => {
+            r_color = 0x22; g_color = 0x8B; b_color = 0x22;
+        }
+        GameBoardSpaceType::Plains => {
+            r_color = 0xF4; g_color = 0xA4; b_color = 0x60;
+        }
+        GameBoardSpaceType::Field => {
+            r_color = 0xFF; g_color = 0xD7; b_color = 0x00;
+        }
+    }
+
+    draw_hexagon(&gl, &shader_program, HexagonSpec {
+        color: ColorSpec { r: r_color, g: g_color, b: b_color },
+        pos: PositionSpec { x: x_pos_translated, y: y_pos_translated } } );
 }
 
 
@@ -303,8 +399,8 @@ fn main() {
     // The Window allows you to get and set many of the SDL_Window properties (i.e., border, size, PixelFormat, etc)
     // However, you cannot directly access the pixels of the Window without a context.
 
-    let window_width = 1920_u32;
-    let window_height = 1080_u32;
+    let window_width = 800_u32;
+    let window_height = 800_u32;
     let aspect_ratio = window_width as f32 / window_height as f32;
 
     let window = video_subsystem
@@ -379,8 +475,8 @@ fn main() {
 
     let audio_device = audio_subsystem.open_playback(None, &desired_spec, |_spec| {
         AudioEngine {
-        sample_number: 0
-    }
+            sample_number: 0
+        }
     }).unwrap();
 
     println!("Audio device buffer size: {} samples", audio_device.spec().samples);
@@ -396,12 +492,20 @@ fn main() {
     // Compile and link a program with shaders that match this file name
     let shader_program = render_gl::Program::from_res(&gl, &res, "shaders/basic").unwrap();
     write_scale_data(&gl, &shader_program, aspect_ratio);
+    write_rotate_data(&gl, &shader_program, 0.0);
 
-    let rotation_rate = 0.5_f32;
     let frames_per_second = 60;
 
     let mut frame_count: u32 = 0;
     let mut frame_time: u32 = 0;
+
+    let mut board_state: [[GameBoardSpaceType; 15]; 15] = [[GameBoardSpaceType::Void; 15]; 15];
+    for x in 0..15 {
+        for y in 0..15 {
+            let space_type: GameBoardSpaceType = rand::random();
+            board_state[x][y] = space_type;
+        }
+    }
 
     // Loop with label 'main (exited by the break 'main statement)
     'main: loop {
@@ -417,18 +521,17 @@ fn main() {
 
         // No more events to handle
 
-        // Update triangle rotation transform data
-        let rotation_angle = frame_time as f32 / 1000.0 * 2.0 * std::f32::consts::PI * rotation_rate;
-        write_rotate_data(&gl, &shader_program, rotation_angle);
-
         // Clear the color buffer.
         unsafe {
             gl.Clear(gl::COLOR_BUFFER_BIT);
         }
 
         // Draw
-        draw_hexagon(&gl, &shader_program);
-        draw_triangle(&gl, &shader_program);
+        for x in 0..15 {
+            for y in 0..15 {
+                draw_game_board_space(&gl, &shader_program, board_state[x][y], x as u8, y as u8);
+            }
+        }
         draw_point(&gl, &shader_program);
 
         // Swap the window pixels with what we have just rendered
