@@ -207,18 +207,10 @@ fn main() {
     impl sdl2::audio::AudioCallback for AudioEngine {
         type Channel = f32;
 
-        // For now, this just generates a 440 Hz square wave beep (100 ms long) every second.
         fn callback(&mut self, out: &mut [f32]) {
             for x in out.iter_mut() {
-                if self.sample_number % 44100 < 4410 {
-                    if (self.sample_number % 44100) % (44100/440) <= (44100/880) {
-                        *x = 0.05;
-                    } else {
-                        *x = -0.05;
-                    }
-                } else {
-                    *x = 0.0;
-                }
+                // This is where audio output will go.
+                *x = 0.0;
                 self.sample_number = self.sample_number + 1;
             }
         }
