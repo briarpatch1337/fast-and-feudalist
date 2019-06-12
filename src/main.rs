@@ -38,7 +38,6 @@ pub mod drawing;
 
 use resources::Resources;
 use std::path::Path;
-use drawing::{ColorSpec, PositionSpec, HexagonSpec};
 
 #[derive(Copy,Clone)]
 enum GameBoardSpaceType
@@ -64,14 +63,71 @@ impl rand::distributions::Distribution<GameBoardSpaceType> for rand::distributio
     }
 }
 
-fn draw_game_board_space(gl: &gl::Gl, shader_program: &render_gl::Program, space_type: GameBoardSpaceType, x_pos: u8, y_pos: u8) {
+
+struct GameBoardSpacePos {
+    x_pos: u8,
+    y_pos: u8
+}
+
+impl GameBoardSpacePos {
+    // Return the position of the space which is above this space.
+    fn up(&self) -> GameBoardSpacePos {
+        GameBoardSpacePos {
+            x_pos: self.x_pos,
+            y_pos: self.y_pos + 1
+        }
+    }
+
+    // Return the position of the space which is up and to the right of this space.
+    fn up_right(&self) -> GameBoardSpacePos {
+        GameBoardSpacePos {
+            x_pos: self.x_pos + 1,
+            y_pos: if self.x_pos % 2 == 0 {self.y_pos + 1} else {self.y_pos}
+        }
+    }
+
+    // Return the position of the space which is down and to the right of this space.
+    fn down_right(&self) -> GameBoardSpacePos {
+        GameBoardSpacePos {
+            x_pos: self.x_pos + 1,
+            y_pos: if self.x_pos % 2 == 0 {self.y_pos} else {self.y_pos - 1}
+        }
+    }
+
+    // Return the position of the space which is below this space.
+    fn down(&self) -> GameBoardSpacePos {
+        GameBoardSpacePos {
+            x_pos: self.x_pos,
+            y_pos: self.y_pos - 1
+        }
+    }
+
+    // Return the position of the space which is down and to the left of this space.
+    fn down_left(&self) -> GameBoardSpacePos {
+        GameBoardSpacePos {
+            x_pos: self.x_pos - 1,
+            y_pos: if self.x_pos % 2 == 0 {self.y_pos} else {self.y_pos - 1}
+        }
+    }
+
+    // Return the position of the space which is up and to the left of this space.
+    fn up_left(&self) -> GameBoardSpacePos {
+        GameBoardSpacePos {
+            x_pos: self.x_pos - 1,
+            y_pos: if self.x_pos % 2 == 0 {self.y_pos + 1} else {self.y_pos}
+        }
+    }
+}
+
+
+fn draw_game_board_space(gl: &gl::Gl, shader_program: &render_gl::Program, space_type: GameBoardSpaceType, position: GameBoardSpacePos) {
     //    let hexagon_width = 1_f32/10_f32;
     //    let hexagon_height = 3_f32.sqrt()/20_f32;
 
-    let x_pos_translated = (x_pos as f32 - 7.0) * 0.75 / 10.0;
-    let mut y_pos_translated = (y_pos as f32 - 7.0) * 3_f32.sqrt() / 20.0;
+    let x_pos_translated = (position.x_pos as f32 - 8.0) * 0.75 / 10.0;
+    let mut y_pos_translated = (position.y_pos as f32 - 7.0) * 3_f32.sqrt() / 20.0;
 
-    if x_pos % 2 == 0 {
+    if position.x_pos % 2 == 0 {
         y_pos_translated += 3_f32.sqrt() / 40_f32;
     }
 
@@ -112,9 +168,9 @@ fn draw_game_board_space(gl: &gl::Gl, shader_program: &render_gl::Program, space
         }
     }
 
-    drawing::draw_hexagon(&gl, &shader_program, HexagonSpec {
-        color: ColorSpec { r: r_color, g: g_color, b: b_color },
-        pos: PositionSpec { x: x_pos_translated, y: y_pos_translated } } );
+    drawing::draw_hexagon(&gl, &shader_program, drawing::HexagonSpec {
+        color: drawing::ColorSpec { r: r_color, g: g_color, b: b_color },
+        pos: drawing::PositionSpec { x: x_pos_translated, y: y_pos_translated } } );
 }
 
 
@@ -250,11 +306,84 @@ fn main() {
     let mut frame_count: u32 = 0;
     let mut frame_time: u32;
 
-    let mut board_state: [[GameBoardSpaceType; 15]; 15] = [[GameBoardSpaceType::Void; 15]; 15];
-    for x in 0..15 {
-        for y in 0..15 {
-            let space_type: GameBoardSpaceType = rand::random();
-            board_state[x][y] = space_type;
+    let mut board_state: [[GameBoardSpaceType; 15]; 17] = [[GameBoardSpaceType::Void; 15]; 17];
+
+    // a, b, c spaces are in clockwise order
+    struct BoardPiece {
+        a: GameBoardSpaceType,
+        b: GameBoardSpaceType,
+        c: GameBoardSpaceType
+    }
+
+    let board_pieces = [
+    // Mostly Mountain
+        BoardPiece { a: GameBoardSpaceType::Mountain, b: GameBoardSpaceType::Mountain, c: GameBoardSpaceType::Mountain },
+        BoardPiece { a: GameBoardSpaceType::Water, b: GameBoardSpaceType::Mountain, c: GameBoardSpaceType::Mountain },
+        BoardPiece { a: GameBoardSpaceType::Water, b: GameBoardSpaceType::Mountain, c: GameBoardSpaceType::Mountain },
+        BoardPiece { a: GameBoardSpaceType::Forest, b: GameBoardSpaceType::Mountain, c: GameBoardSpaceType::Mountain },
+        BoardPiece { a: GameBoardSpaceType::Plains, b: GameBoardSpaceType::Mountain, c: GameBoardSpaceType::Mountain },
+        BoardPiece { a: GameBoardSpaceType::Field, b: GameBoardSpaceType::Mountain, c: GameBoardSpaceType::Mountain },
+    // Mostly Field
+        BoardPiece { a: GameBoardSpaceType::Field, b: GameBoardSpaceType::Field, c: GameBoardSpaceType::Field },
+        BoardPiece { a: GameBoardSpaceType::Water, b: GameBoardSpaceType::Field, c: GameBoardSpaceType::Field },
+        BoardPiece { a: GameBoardSpaceType::Water, b: GameBoardSpaceType::Field, c: GameBoardSpaceType::Field },
+        BoardPiece { a: GameBoardSpaceType::Mountain, b: GameBoardSpaceType::Field, c: GameBoardSpaceType::Field },
+        BoardPiece { a: GameBoardSpaceType::Forest, b: GameBoardSpaceType::Field, c: GameBoardSpaceType::Field },
+        BoardPiece { a: GameBoardSpaceType::Plains, b: GameBoardSpaceType::Field, c: GameBoardSpaceType::Field },
+    // Mostly Plains
+        BoardPiece { a: GameBoardSpaceType::Plains, b: GameBoardSpaceType::Plains, c: GameBoardSpaceType::Plains },
+        BoardPiece { a: GameBoardSpaceType::Plains, b: GameBoardSpaceType::Plains, c: GameBoardSpaceType::Plains },
+        BoardPiece { a: GameBoardSpaceType::Water, b: GameBoardSpaceType::Plains, c: GameBoardSpaceType::Plains },
+        BoardPiece { a: GameBoardSpaceType::Water, b: GameBoardSpaceType::Plains, c: GameBoardSpaceType::Plains },
+        BoardPiece { a: GameBoardSpaceType::Mountain, b: GameBoardSpaceType::Plains, c: GameBoardSpaceType::Plains },
+        BoardPiece { a: GameBoardSpaceType::Forest, b: GameBoardSpaceType::Plains, c: GameBoardSpaceType::Plains },
+        BoardPiece { a: GameBoardSpaceType::Field, b: GameBoardSpaceType::Plains, c: GameBoardSpaceType::Plains },
+    // Mostly Forest
+        BoardPiece { a: GameBoardSpaceType::Forest, b: GameBoardSpaceType::Forest, c: GameBoardSpaceType::Forest },
+        BoardPiece { a: GameBoardSpaceType::Forest, b: GameBoardSpaceType::Forest, c: GameBoardSpaceType::Forest },
+        BoardPiece { a: GameBoardSpaceType::Water, b: GameBoardSpaceType::Forest, c: GameBoardSpaceType::Forest },
+        BoardPiece { a: GameBoardSpaceType::Water, b: GameBoardSpaceType::Forest, c: GameBoardSpaceType::Forest },
+        BoardPiece { a: GameBoardSpaceType::Mountain, b: GameBoardSpaceType::Forest, c: GameBoardSpaceType::Forest },
+        BoardPiece { a: GameBoardSpaceType::Plains, b: GameBoardSpaceType::Forest, c: GameBoardSpaceType::Forest },
+        BoardPiece { a: GameBoardSpaceType::Field, b: GameBoardSpaceType::Forest, c: GameBoardSpaceType::Forest },
+        BoardPiece { a: GameBoardSpaceType::Plains, b: GameBoardSpaceType::Field, c: GameBoardSpaceType::Forest },
+    // Mixed
+        BoardPiece { a: GameBoardSpaceType::Field, b: GameBoardSpaceType::Plains, c: GameBoardSpaceType::Mountain },
+        BoardPiece { a: GameBoardSpaceType::Water, b: GameBoardSpaceType::Plains, c: GameBoardSpaceType::Mountain },
+        BoardPiece { a: GameBoardSpaceType::Field, b: GameBoardSpaceType::Mountain, c: GameBoardSpaceType::Water },
+        BoardPiece { a: GameBoardSpaceType::Plains, b: GameBoardSpaceType::Field, c: GameBoardSpaceType::Water },
+        BoardPiece { a: GameBoardSpaceType::Plains, b: GameBoardSpaceType::Forest, c: GameBoardSpaceType::Mountain },
+        BoardPiece { a: GameBoardSpaceType::Field, b: GameBoardSpaceType::Forest, c: GameBoardSpaceType::Mountain },
+        BoardPiece { a: GameBoardSpaceType::Mountain, b: GameBoardSpaceType::Forest, c: GameBoardSpaceType::Water },
+        BoardPiece { a: GameBoardSpaceType::Plains, b: GameBoardSpaceType::Forest, c: GameBoardSpaceType::Water },
+        BoardPiece { a: GameBoardSpaceType::Field, b: GameBoardSpaceType::Forest, c: GameBoardSpaceType::Water },
+    ];
+
+    let mut board_piece_idx = 0;
+    for x in 0..6 {
+        for y in 0..6 {
+            let current_board_piece = &board_pieces[board_piece_idx];
+            if ((x % 2 == 0) && (y % 2 == 0)) || ((x % 2 == 1) && (y % 2 == 1)){
+                // One space on the left, two spaces on the right
+                let left_space_pos = GameBoardSpacePos { x_pos: x * 3, y_pos: (y * 5 + 1) / 2 };
+                //let left_space_pos = GameBoardSpacePos { x_pos: x * 2, y_pos: (y * 3 + 1) / 2 };
+                let up_right_space_pos = left_space_pos.up_right();
+                let down_right_space_pos = left_space_pos.down_right();
+                board_state[left_space_pos.x_pos as usize][left_space_pos.y_pos as usize] = current_board_piece.a;
+                board_state[up_right_space_pos.x_pos as usize][up_right_space_pos.y_pos as usize] = current_board_piece.b;
+                board_state[down_right_space_pos.x_pos as usize][down_right_space_pos.y_pos as usize] = current_board_piece.c;
+            }
+            else {
+                // One space on the right, two spaces on the left
+                let down_left_space_pos = GameBoardSpacePos { x_pos: x * 3, y_pos: y * 5 / 2 };
+                //let down_left_space_pos = GameBoardSpacePos { x_pos: x * 2, y_pos: y * 3 / 2 };
+                let up_left_space_pos = down_left_space_pos.up();
+                let right_space_pos = down_left_space_pos.up_right();
+                board_state[down_left_space_pos.x_pos as usize][down_left_space_pos.y_pos as usize] = current_board_piece.a;
+                board_state[up_left_space_pos.x_pos as usize][up_left_space_pos.y_pos as usize] = current_board_piece.b;
+                board_state[right_space_pos.x_pos as usize][right_space_pos.y_pos as usize] = current_board_piece.c;
+            }
+            board_piece_idx = board_piece_idx + 1;
         }
     }
 
@@ -278,9 +407,9 @@ fn main() {
         }
 
         // Draw
-        for x in 0..15 {
+        for x in 0..17 {
             for y in 0..15 {
-                draw_game_board_space(&gl, &shader_program, board_state[x][y], x as u8, y as u8);
+                draw_game_board_space(&gl, &shader_program, board_state[x][y], GameBoardSpacePos {x_pos: x as u8, y_pos: y as u8});
             }
         }
         drawing::draw_point(&gl, &shader_program);
