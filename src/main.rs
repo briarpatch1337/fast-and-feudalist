@@ -394,7 +394,11 @@ fn main() {
         for event in event_pump.poll_iter() {
             match event {
                 // SDL_QuitEvent
-                sdl2::event::Event::Quit { .. } => break 'main,
+                sdl2::event::Event::Quit { .. } => { break 'main }
+                // SDL_MouseButtonEvent
+                sdl2::event::Event::MouseButtonDown {timestamp: _, window_id: _, which: _, mouse_btn: _, clicks: _, x: x_mouse, y: y_mouse} => {
+                    println!("MouseButtonDown {}, {}", x_mouse, y_mouse);
+                }
                 _ => {}
             }
         }
