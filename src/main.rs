@@ -250,6 +250,14 @@ struct GameUIData {
     board_state: [[GameBoardSpaceType; 15]; 17]
 }
 
+impl GameUIData {
+    fn defaults() -> GameUIData {
+        GameUIData {
+            board_state: [[GameBoardSpaceType::Void; 15]; 17]
+        }
+    }
+}
+
 
 //
 // Main function
@@ -383,7 +391,7 @@ fn main() {
     let mut frame_count: u32 = 0;
     let mut frame_time: u32;
 
-    let mut game_ui_data = GameUIData { board_state: [[GameBoardSpaceType::Void; 15]; 17] };
+    let mut game_ui_data = GameUIData::defaults();
     let board_state = &mut game_ui_data.board_state;
 
     let mut board_piece_idx = 0;
