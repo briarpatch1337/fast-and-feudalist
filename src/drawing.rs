@@ -145,15 +145,16 @@ pub struct PositionSpec {
 
 pub struct HexagonSpec {
     pub color: ColorSpec,
-    pub pos: PositionSpec
+    pub pos: PositionSpec,
+    pub width: f32
 }
 
 
 pub fn draw_hexagon(gl: &gl::Gl, shader_program: &render_gl::Program, hex_spec: HexagonSpec) {
     shader_program.set_used();
 
-    let hexagon_width = 1_f32/10_f32;
-    let hexagon_height = 3_f32.sqrt()/20_f32;
+    let hexagon_width = hex_spec.width;
+    let hexagon_height =  hexagon_width * 3_f32.sqrt()/2.0;
     let x_pos = hex_spec.pos.x;
     let y_pos = hex_spec.pos.y;
     let r_color = hex_spec.color.r as f32 / 255.0;

@@ -124,7 +124,7 @@ fn draw_game_board_space(gl: &gl::Gl, shader_program: &render_gl::Program, space
     // Specifying f32 (single-precision float) as the type initially
     // makes it that f32 is the type that will be used
     // to store results for the rest of the function.
-    let hexagon_width: f32 = 1.0/10.0;
+    let hexagon_width: f32 = 0.10;
 
     // Because of the way the hexagons are staggered, the x spacing of columns is 3/4 of a hexagon width.
     let hexagon_x_spacing = hexagon_width * 0.75;
@@ -184,7 +184,8 @@ fn draw_game_board_space(gl: &gl::Gl, shader_program: &render_gl::Program, space
 
     drawing::draw_hexagon(&gl, &shader_program, drawing::HexagonSpec {
         color: drawing::ColorSpec { r: r_color, g: g_color, b: b_color },
-        pos: drawing::PositionSpec { x: x_pos_translated, y: y_pos_translated } } );
+        pos: drawing::PositionSpec { x: x_pos_translated, y: y_pos_translated },
+        width: hexagon_width } );
 }
 
 // a, b, c spaces are in clockwise order
