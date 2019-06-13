@@ -195,11 +195,11 @@ pub struct BoardPiece {
 }
 
 
-mod GameConstants {
+mod game_constants {
     use GameBoardSpaceType;
     use BoardPiece;
 
-    pub const board_pieces: [BoardPiece; 36] = [
+    pub const BOARD_PIECES: [BoardPiece; 36] = [
     // Mostly Mountain (6)
         BoardPiece { a: GameBoardSpaceType::Mountain, b: GameBoardSpaceType::Mountain, c: GameBoardSpaceType::Mountain },
         BoardPiece { a: GameBoardSpaceType::Water, b: GameBoardSpaceType::Mountain, c: GameBoardSpaceType::Mountain },
@@ -389,7 +389,7 @@ fn main() {
     let mut board_piece_idx = 0;
     for x in 0..6 {
         for y in 0..6 {
-            let current_board_piece = &GameConstants::board_pieces[board_piece_idx];
+            let current_board_piece = &game_constants::BOARD_PIECES[board_piece_idx];
             if ((x % 2 == 0) && (y % 2 == 0)) || ((x % 2 == 1) && (y % 2 == 1)){
                 // One space on the left, two spaces on the right
                 let left_space_pos = GameBoardSpacePos { x_pos: x * 3, y_pos: (y * 5 + 1) / 2 };
