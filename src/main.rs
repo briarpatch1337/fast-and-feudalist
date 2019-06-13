@@ -318,8 +318,11 @@ fn main() {
     let _gl_context = window.gl_create_context().unwrap();
 
     // Load the OpenGL function pointers from SDL.
-    let gl =
-        gl::Gl::load_with(|s| video_subsystem.gl_get_proc_address(s) as *const std::os::raw::c_void);
+    // Use a closure (lambda function), to add a cast to a C-style void pointer (which must be the return type of the function passed to load_with)
+    let gl_get_proc_address_function = |procname| {
+        video_subsystem.gl_get_proc_address(procname) as *const std::os::raw::c_void
+    };
+    let gl = gl::Gl::load_with(gl_get_proc_address_function);
 
     unsafe {
         // glViewport
