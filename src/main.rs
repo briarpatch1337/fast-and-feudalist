@@ -121,15 +121,29 @@ impl GameBoardSpacePos {
 
 
 fn draw_game_board_space(gl: &gl::Gl, shader_program: &render_gl::Program, space_type: GameBoardSpaceType, position: GameBoardSpacePos) {
-    //    let hexagon_width = 1_f32/10_f32;
-    //    let hexagon_height = 3_f32.sqrt()/20_f32;
+    // Specifying f32 (single-precision float) as the type initially
+    // makes it that f32 is the type that will be used
+    // to store results for the rest of the function.
+    let hexagon_width: f32 = 1.0/10.0;
 
-    let x_pos_translated = (position.x_pos as f32 - 8.0) * 0.75 / 10.0;
-    let mut y_pos_translated = (position.y_pos as f32 - 7.0) * 3_f32.sqrt() / 20.0;
+    // Because of the way the hexagons are staggered, the x spacing of columns is 3/4 of a hexagon width.
+    let hexagon_x_spacing = hexagon_width * 0.75;
+    let game_board_origin_x = -8.0 * hexagon_x_spacing;
 
-    if position.x_pos % 2 == 0 {
-        y_pos_translated += 3_f32.sqrt() / 40_f32;
-    }
+    // Need to be explicit about the type of the number 3, in order to call sqrt().
+    let hexagon_height =  hexagon_width * 3_f32.sqrt()/2.0;
+    let hexagon_y_spacing = hexagon_height;
+    let game_board_origin_y = -7.0 * hexagon_y_spacing;
+
+    let x_pos_translated = game_board_origin_x + position.x_pos as f32 * hexagon_x_spacing;
+
+    // This is like a ternary operator, but more verbose.  I think it's easier to read.
+    // Even numbered columns will be half a hexagon height higher than odd numbered columns.
+
+    let y_pos_translated = game_board_origin_y + position.y_pos as f32 * hexagon_y_spacing
+        +
+        if position.x_pos % 2 == 0 { hexagon_height / 2.0 }
+        else { 0.0 };
 
     let r_color: u8;
     let g_color: u8;
