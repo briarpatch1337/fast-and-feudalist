@@ -427,6 +427,9 @@ fn main() {
 
     // Loop with label 'main (exited by the break 'main statement)
     'main: loop {
+        let mut mouse_clicked = false;
+        let mut last_mouse_click_pos = drawing::PositionSpec { x: 0.0, y: 0.0 };
+
         // Catch up on every event in the event_pump
         // See documentation for SDL_Event.
         for event in event_pump.poll_iter() {
@@ -435,13 +438,18 @@ fn main() {
                 sdl2::event::Event::Quit { .. } => { break 'main }
                 // SDL_MouseButtonEvent
                 sdl2::event::Event::MouseButtonDown {timestamp: _, window_id: _, which: _, mouse_btn: _, clicks: _, x: x_mouse, y: y_mouse} => {
-                    println!("MouseButtonDown {}, {}", x_mouse, y_mouse);
+                    last_mouse_click_pos = drawing::PositionSpec { x: x_mouse as f32, y: y_mouse as f32};
+                    mouse_clicked = true;
                 }
                 _ => {}
             }
         }
 
         // No more events to handle
+
+        if mouse_clicked {
+            println!("Mouse clicked on {}, {}", last_mouse_click_pos.x, last_mouse_click_pos.y);
+        }
 
         // Clear the color buffer.
         unsafe {
