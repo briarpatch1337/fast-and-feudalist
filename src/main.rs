@@ -295,20 +295,22 @@ fn main() {
     gl_attr.set_context_version(4, 5);
 
     // Initializes a new WindowBuilder, sets the window to be usable with an OpenGL context,
-    // sets the window to be resizable, builds the window, and checks for errors.
+    // sets the window to be fullscreen at desktop resolution, builds the window, and checks for errors.
     // The Window allows you to get and set many of the SDL_Window properties (i.e., border, size, PixelFormat, etc)
     // However, you cannot directly access the pixels of the Window without a context.
 
-    let window_width = 800_u32;
-    let window_height = 800_u32;
-    let aspect_ratio = window_width as f32 / window_height as f32;
-
     let window = video_subsystem
-        .window("Game", window_width, window_height)
+        .window("Game", 0, 0)
         .opengl()
-        .resizable()
+        .fullscreen_desktop()
         .build()
         .unwrap();
+
+    let display_mode = window.display_mode().unwrap();
+
+    let window_width = display_mode.w as u32;
+    let window_height = display_mode.h as u32;
+    let aspect_ratio = window_width as f32 / window_height as f32;
 
     // SDL_GL_CreateContext
     // Creates an OpenGL context for use with an OpenGL window, and makes it the current context.
