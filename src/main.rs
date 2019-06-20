@@ -119,6 +119,11 @@ impl GameBoardSpacePos {
     }
 }
 
+struct MousePos {
+    x_pos: i32,
+    y_pos: i32
+}
+
 mod drawing_constants {
     pub const HEXAGON_WIDTH: f32 = 0.10;
 }
@@ -250,18 +255,21 @@ mod game_constants {
         BoardPiece { a: GameBoardSpaceType::Plains, b: GameBoardSpaceType::Forest, c: GameBoardSpaceType::Water },
         BoardPiece { a: GameBoardSpaceType::Field, b: GameBoardSpaceType::Forest, c: GameBoardSpaceType::Water },
     ];
+
+    pub const MAX_BOARD_HEIGHT: usize = 15;
+    pub const MAX_BOARD_WIDTH: usize = 17;
 }
 
 
 // UI data, for now, will be constructed in the main function, and passed by reference where needed.
 struct GameUIData {
-    board_state: [[GameBoardSpaceType; 15]; 17]
+    board_state: [[GameBoardSpaceType; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT]
 }
 
 impl GameUIData {
     fn defaults() -> GameUIData {
         GameUIData {
-            board_state: [[GameBoardSpaceType::Void; 15]; 17]
+            board_state: [[GameBoardSpaceType::Void; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT]
         }
     }
 }
@@ -414,9 +422,9 @@ fn main() {
                 //let left_space_pos = GameBoardSpacePos { x_pos: x * 2, y_pos: (y * 3 + 1) / 2 };
                 let up_right_space_pos = left_space_pos.up_right();
                 let down_right_space_pos = left_space_pos.down_right();
-                board_state[left_space_pos.x_pos as usize][left_space_pos.y_pos as usize] = current_board_piece.a;
-                board_state[up_right_space_pos.x_pos as usize][up_right_space_pos.y_pos as usize] = current_board_piece.b;
-                board_state[down_right_space_pos.x_pos as usize][down_right_space_pos.y_pos as usize] = current_board_piece.c;
+                board_state[left_space_pos.y_pos as usize][left_space_pos.x_pos as usize] = current_board_piece.a;
+                board_state[up_right_space_pos.y_pos as usize][up_right_space_pos.x_pos as usize] = current_board_piece.b;
+                board_state[down_right_space_pos.y_pos as usize][down_right_space_pos.x_pos as usize] = current_board_piece.c;
             }
             else {
                 // One space on the right, two spaces on the left
@@ -424,9 +432,9 @@ fn main() {
                 //let down_left_space_pos = GameBoardSpacePos { x_pos: x * 2, y_pos: y * 3 / 2 };
                 let up_left_space_pos = down_left_space_pos.up();
                 let right_space_pos = down_left_space_pos.up_right();
-                board_state[down_left_space_pos.x_pos as usize][down_left_space_pos.y_pos as usize] = current_board_piece.a;
-                board_state[up_left_space_pos.x_pos as usize][up_left_space_pos.y_pos as usize] = current_board_piece.b;
-                board_state[right_space_pos.x_pos as usize][right_space_pos.y_pos as usize] = current_board_piece.c;
+                board_state[down_left_space_pos.y_pos as usize][down_left_space_pos.x_pos as usize] = current_board_piece.a;
+                board_state[up_left_space_pos.y_pos as usize][up_left_space_pos.x_pos as usize] = current_board_piece.b;
+                board_state[right_space_pos.y_pos as usize][right_space_pos.x_pos as usize] = current_board_piece.c;
             }
             board_piece_idx = board_piece_idx + 1;
         }
@@ -435,7 +443,7 @@ fn main() {
     // Loop with label 'main (exited by the break 'main statement)
     'main: loop {
         let mut mouse_clicked = false;
-        let mut last_mouse_click_pos = drawing::PositionSpec { x: 0.0, y: 0.0 };
+        let mut last_mouse_click_pos = MousePos { x_pos: 0, y_pos: 0 };
 
         // Catch up on every event in the event_pump
         // See documentation for SDL_Event.
@@ -445,7 +453,7 @@ fn main() {
                 sdl2::event::Event::Quit { .. } => { break 'main }
                 // SDL_MouseButtonEvent
                 sdl2::event::Event::MouseButtonDown {timestamp: _, window_id: _, which: _, mouse_btn: _, clicks: _, x: x_mouse, y: y_mouse} => {
-                    last_mouse_click_pos = drawing::PositionSpec { x: x_mouse as f32, y: y_mouse as f32};
+                    last_mouse_click_pos = MousePos { x_pos: x_mouse, y_pos: y_mouse };
                     mouse_clicked = true;
                 }
                 _ => {}
@@ -455,7 +463,7 @@ fn main() {
         // No more events to handle
 
         if mouse_clicked {
-            println!("Mouse clicked on {}, {}", last_mouse_click_pos.x, last_mouse_click_pos.y);
+            println!("Mouse clicked on {}, {}", last_mouse_click_pos.x_pos, last_mouse_click_pos.y_pos);
         }
 
         // Clear the color buffer.
@@ -466,7 +474,7 @@ fn main() {
         // Draw
         for x in 0..17 {
             for y in 0..15 {
-                draw_game_board_space(&gl, &shader_program, board_state[x][y], GameBoardSpacePos {x_pos: x as u8, y_pos: y as u8});
+                draw_game_board_space(&gl, &shader_program, board_state[y][x], GameBoardSpacePos {x_pos: x as u8, y_pos: y as u8});
             }
         }
         drawing::draw_point(&gl, &shader_program);
