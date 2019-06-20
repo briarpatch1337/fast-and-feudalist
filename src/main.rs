@@ -119,12 +119,15 @@ impl GameBoardSpacePos {
     }
 }
 
+mod drawing_constants {
+    pub const HEXAGON_WIDTH: f32 = 0.10;
+}
 
-fn draw_game_board_space(gl: &gl::Gl, shader_program: &render_gl::Program, space_type: GameBoardSpaceType, position: GameBoardSpacePos) {
+fn game_board_pos_to_drawing_pos(position: GameBoardSpacePos) -> drawing::PositionSpec {
     // Specifying f32 (single-precision float) as the type initially
     // makes it that f32 is the type that will be used
     // to store results for the rest of the function.
-    let hexagon_width: f32 = 0.10;
+    let hexagon_width: f32 = drawing_constants::HEXAGON_WIDTH;
 
     // Because of the way the hexagons are staggered, the x spacing of columns is 3/4 of a hexagon width.
     let hexagon_x_spacing = hexagon_width * 0.75;
@@ -145,47 +148,51 @@ fn draw_game_board_space(gl: &gl::Gl, shader_program: &render_gl::Program, space
         if position.x_pos % 2 == 0 { hexagon_height / 2.0 }
         else { 0.0 };
 
-    let r_color: u8;
-    let g_color: u8;
-    let b_color: u8;
+    drawing::PositionSpec { x: x_pos_translated, y: y_pos_translated }
+}
 
+
+fn color_for_game_board_space_type(space_type: GameBoardSpaceType) -> drawing::ColorSpec {
     match space_type {
-        GameBoardSpaceType::Void => {
-            r_color = 0x00;
-            g_color = 0x00;
-            b_color = 0x00;
-        }
-        GameBoardSpaceType::Water => {
-            r_color = 0x00;
-            g_color = 0x00;
-            b_color = 0x80;
-        }
-        GameBoardSpaceType::Mountain => {
-            r_color = 0x80;
-            g_color = 0x80;
-            b_color = 0x80;
-        }
-        GameBoardSpaceType::Forest => {
-            r_color = 0x22;
-            g_color = 0x8B;
-            b_color = 0x22;
-        }
-        GameBoardSpaceType::Plains => {
-            r_color = 0xF4;
-            g_color = 0xA4;
-            b_color = 0x60;
-        }
-        GameBoardSpaceType::Field => {
-            r_color = 0xFF;
-            g_color = 0xD7;
-            b_color = 0x00;
+        GameBoardSpaceType::Void => drawing::ColorSpec {
+            r: 0x00,
+            g: 0x00,
+            b: 0x00
+        },
+        GameBoardSpaceType::Water => drawing::ColorSpec {
+            r: 0x00,
+            g: 0x00,
+            b: 0x80
+        },
+        GameBoardSpaceType::Mountain => drawing::ColorSpec {
+            r: 0x80,
+            g: 0x80,
+            b: 0x80
+        },
+        GameBoardSpaceType::Forest => drawing::ColorSpec {
+            r: 0x22,
+            g: 0x8B,
+            b: 0x22,
+        },
+        GameBoardSpaceType::Plains => drawing::ColorSpec {
+            r: 0xF4,
+            g: 0xA4,
+            b: 0x60
+        },
+        GameBoardSpaceType::Field => drawing::ColorSpec {
+            r: 0xFF,
+            g: 0xD7,
+            b: 0x00
         }
     }
+}
 
+
+fn draw_game_board_space(gl: &gl::Gl, shader_program: &render_gl::Program, space_type: GameBoardSpaceType, position: GameBoardSpacePos) {
     drawing::draw_hexagon(&gl, &shader_program, drawing::HexagonSpec {
-        color: drawing::ColorSpec { r: r_color, g: g_color, b: b_color },
-        pos: drawing::PositionSpec { x: x_pos_translated, y: y_pos_translated },
-        width: hexagon_width } );
+        color: color_for_game_board_space_type(space_type),
+        pos: game_board_pos_to_drawing_pos(position),
+        width: drawing_constants::HEXAGON_WIDTH } );
 }
 
 // a, b, c spaces are in clockwise order
