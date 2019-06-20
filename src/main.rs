@@ -307,10 +307,7 @@ fn main() {
         .build()
         .unwrap();
 
-    let display_mode = window.display_mode().unwrap();
-
-    let window_width = display_mode.w as u32;
-    let window_height = display_mode.h as u32;
+    let (window_width, window_height) = window.drawable_size();
     let aspect_ratio = window_width as f32 / window_height as f32;
 
     // SDL_GL_CreateContext
