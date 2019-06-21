@@ -136,12 +136,13 @@ fn game_board_pos_to_drawing_pos(position: GameBoardSpacePos) -> drawing::Positi
 
     // Because of the way the hexagons are staggered, the x spacing of columns is 3/4 of a hexagon width.
     let hexagon_x_spacing = hexagon_width * 0.75;
-    let game_board_origin_x = -8.0 * hexagon_x_spacing;
+    let game_board_origin_x = -1.0 * (game_constants::MAX_BOARD_WIDTH / 2) as f32 * hexagon_x_spacing;
 
+    // The height of a hexagon (turned with the points to the side) is width * sqrt(3) / 2.
     // Need to be explicit about the type of the number 3, in order to call sqrt().
     let hexagon_height =  hexagon_width * 3_f32.sqrt()/2.0;
     let hexagon_y_spacing = hexagon_height;
-    let game_board_origin_y = -7.0 * hexagon_y_spacing;
+    let game_board_origin_y = -1.0 * (game_constants::MAX_BOARD_HEIGHT / 2) as f32 * hexagon_y_spacing;
 
     let x_pos_translated = game_board_origin_x + position.x_pos as f32 * hexagon_x_spacing;
 
