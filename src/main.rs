@@ -176,14 +176,14 @@ fn color_for_game_board_space_type(space_type: GameBoardSpaceType) -> drawing::C
             b: 0x80
         },
         GameBoardSpaceType::Forest => drawing::ColorSpec {
-            r: 0x22,
-            g: 0x8B,
-            b: 0x22,
+            r: 0x11,
+            g: 0x46,
+            b: 0x11,
         },
         GameBoardSpaceType::Plains => drawing::ColorSpec {
-            r: 0xF4,
-            g: 0xA4,
-            b: 0x60
+            r: 0x00,
+            g: 0xFF,
+            b: 0x7F
         },
         GameBoardSpaceType::Field => drawing::ColorSpec {
             r: 0xFF,
