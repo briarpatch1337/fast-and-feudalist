@@ -220,6 +220,74 @@ pub fn draw_hexagon(gl: &gl::Gl, shader_program: &render_gl::Program, hex_spec: 
 }
 
 
+pub fn draw_hexagon_outline(gl: &gl::Gl, shader_program: &render_gl::Program, hex_spec: HexagonSpec) {
+    shader_program.set_used();
+
+    let hexagon_width = hex_spec.width;
+    let hexagon_height =  hexagon_width * 3_f32.sqrt()/2.0;
+    let x_pos = hex_spec.pos.x;
+    let y_pos = hex_spec.pos.y;
+    let r_color = hex_spec.color.r as f32 / 255.0;
+    let g_color = hex_spec.color.g as f32 / 255.0;
+    let b_color = hex_spec.color.b as f32 / 255.0;
+
+    //TODO the positioning additions can move to the GPU.
+    let vertices: Vec<f32> = vec![
+        x_pos + hexagon_width/2.0, y_pos, 0.0,                      r_color, g_color, b_color,
+        x_pos + hexagon_width/4.0, y_pos - hexagon_height/2.0, 0.0, r_color, g_color, b_color,
+        x_pos - hexagon_width/4.0, y_pos - hexagon_height/2.0, 0.0, r_color, g_color, b_color,
+        x_pos - hexagon_width/2.0, y_pos, 0.0,                      r_color, g_color, b_color,
+        x_pos - hexagon_width/4.0, y_pos + hexagon_height/2.0, 0.0, r_color, g_color, b_color,
+        x_pos + hexagon_width/4.0, y_pos + hexagon_height/2.0, 0.0, r_color, g_color, b_color,
+    ];
+    let mut vbo: gl::types::GLuint = 0;
+    unsafe {
+        gl.GenBuffers(1, &mut vbo);
+    }
+    unsafe {
+        gl.BindBuffer(gl::ARRAY_BUFFER, vbo);
+        gl.BufferData(
+            gl::ARRAY_BUFFER,
+            (vertices.len() * std::mem::size_of::<f32>()) as gl::types::GLsizeiptr,
+            vertices.as_ptr() as *const gl::types::GLvoid,
+            gl::STATIC_DRAW
+        );
+    }
+    let mut vao: gl::types::GLuint = 0;
+    unsafe {
+        gl.GenVertexArrays(1, &mut vao);
+        gl.BindVertexArray(vao);
+        gl.VertexAttribPointer(
+            0,
+            3,
+            gl::FLOAT,
+            gl::FALSE,
+            (6 * std::mem::size_of::<f32>()) as gl::types::GLint,
+            std::ptr::null()
+        );
+        gl.EnableVertexAttribArray(0);
+        gl.VertexAttribPointer(
+            1,
+            3,
+            gl::FLOAT,
+            gl::FALSE,
+            (6 * std::mem::size_of::<f32>()) as gl::types::GLint,
+            (3 * std::mem::size_of::<f32>()) as *const gl::types::GLvoid
+        );
+        gl.EnableVertexAttribArray(1);
+    }
+    unsafe {
+        gl.DrawArrays(
+            gl::LINE_LOOP, // mode
+            0, // starting index in the enabled arrays
+            6 // number of indices to be rendered
+        );
+        gl.DeleteVertexArrays(1, &mut vao);
+        gl.DeleteBuffers(1, &mut vbo);
+    }
+}
+
+
 pub fn write_rotate_data(gl: &gl::Gl, shader_program: &render_gl::Program, rotation_angle: f32) {
     let transform_data = glm::mat4(
         rotation_angle.cos(), -rotation_angle.sin(), 0.0, 0.0,

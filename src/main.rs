@@ -63,7 +63,7 @@ impl rand::distributions::Distribution<GameBoardSpaceType> for rand::distributio
     }
 }
 
-
+#[derive(Clone, Copy, PartialEq)]
 struct GameBoardSpacePos {
     x_pos: u8,
     y_pos: u8
@@ -71,7 +71,7 @@ struct GameBoardSpacePos {
 
 impl GameBoardSpacePos {
     // Return the position of the space which is above this space.
-    fn up(&self) -> GameBoardSpacePos {
+    fn _up(&self) -> GameBoardSpacePos {
         GameBoardSpacePos {
             x_pos: self.x_pos,
             y_pos: self.y_pos + 1
@@ -79,7 +79,7 @@ impl GameBoardSpacePos {
     }
 
     // Return the position of the space which is up and to the right of this space.
-    fn up_right(&self) -> GameBoardSpacePos {
+    fn _up_right(&self) -> GameBoardSpacePos {
         GameBoardSpacePos {
             x_pos: self.x_pos + 1,
             y_pos: if self.x_pos % 2 == 1 {self.y_pos + 1} else {self.y_pos}
@@ -87,7 +87,7 @@ impl GameBoardSpacePos {
     }
 
     // Return the position of the space which is down and to the right of this space.
-    fn down_right(&self) -> GameBoardSpacePos {
+    fn _down_right(&self) -> GameBoardSpacePos {
         GameBoardSpacePos {
             x_pos: self.x_pos + 1,
             y_pos: if self.x_pos % 2 == 1 {self.y_pos} else {self.y_pos - 1}
@@ -95,7 +95,7 @@ impl GameBoardSpacePos {
     }
 
     // Return the position of the space which is below this space.
-    fn down(&self) -> GameBoardSpacePos {
+    fn _down(&self) -> GameBoardSpacePos {
         GameBoardSpacePos {
             x_pos: self.x_pos,
             y_pos: self.y_pos - 1
@@ -103,7 +103,7 @@ impl GameBoardSpacePos {
     }
 
     // Return the position of the space which is down and to the left of this space.
-    fn down_left(&self) -> GameBoardSpacePos {
+    fn _down_left(&self) -> GameBoardSpacePos {
         GameBoardSpacePos {
             x_pos: self.x_pos - 1,
             y_pos: if self.x_pos % 2 == 1 {self.y_pos} else {self.y_pos - 1}
@@ -111,7 +111,7 @@ impl GameBoardSpacePos {
     }
 
     // Return the position of the space which is up and to the left of this space.
-    fn up_left(&self) -> GameBoardSpacePos {
+    fn _up_left(&self) -> GameBoardSpacePos {
         GameBoardSpacePos {
             x_pos: self.x_pos - 1,
             y_pos: if self.x_pos % 2 == 1 {self.y_pos + 1} else {self.y_pos}
@@ -119,6 +119,7 @@ impl GameBoardSpacePos {
     }
 }
 
+#[derive(Clone, Copy)]
 struct MousePos {
     x_pos: i32,
     y_pos: i32
@@ -127,7 +128,7 @@ struct MousePos {
 mod drawing_constants {
     use game_constants;
 
-    pub const HEXAGON_WIDTH: f32 = 0.10;
+    pub const HEXAGON_WIDTH: f32 = 0.30;
 
     // Because of the way the hexagons are staggered, the x spacing of columns is 3/4 of a hexagon width.
     pub const HEXAGON_X_SPACING: f32 = HEXAGON_WIDTH * 0.75;
@@ -185,7 +186,7 @@ fn mouse_pos_to_game_board_pos(mouse_position: MousePos, drawable_size: (u32, u3
             // Mouse pos is in a triangle. Determine if it was to the left or right of the diagonal line.
             if (rounded_x % 6 == 0 && rounded_y % 2 == 1) || (rounded_x % 6 == 3 && rounded_y % 2 == 0) {
                 // positive slope
-                if scaled_y - scaled_y.floor() < (scaled_x - scaled_x.floor()) * 2.0 {
+                if scaled_y - scaled_y.floor() < (scaled_x - scaled_x.floor()) {
                     // right
                     0
                 }
@@ -195,7 +196,7 @@ fn mouse_pos_to_game_board_pos(mouse_position: MousePos, drawable_size: (u32, u3
                 }
             } else {
                 // negative slope
-                if scaled_y - (scaled_y + 1.0).floor() < (scaled_x - scaled_x.floor()) * -2.0 {
+                if scaled_y - (scaled_y + 1.0).floor() < (scaled_x - scaled_x.floor()) * -1.0 {
                     // left
                     1
                 } else {
@@ -285,6 +286,14 @@ fn draw_game_board_space(gl: &gl::Gl, shader_program: &render_gl::Program, space
         width: drawing_constants::HEXAGON_WIDTH } );
 }
 
+
+fn draw_outline(gl: &gl::Gl, shader_program: &render_gl::Program, position: GameBoardSpacePos) {
+    drawing::draw_hexagon_outline(&gl, &shader_program, drawing::HexagonSpec {
+        color: drawing::ColorSpec { r: 0xFF, g: 0xFF, b: 0xFF },
+        pos: game_board_pos_to_drawing_pos(position),
+        width: drawing_constants::HEXAGON_WIDTH } );
+}
+
 // a, b, c spaces are in clockwise order
 pub struct BoardPiece {
     a: GameBoardSpaceType,
@@ -297,7 +306,7 @@ mod game_constants {
     use GameBoardSpaceType;
     use BoardPiece;
 
-    pub const BOARD_PIECES: [BoardPiece; 36] = [
+    pub const _BOARD_PIECES: [BoardPiece; 36] = [
     // Mostly Mountain (6)
         BoardPiece { a: GameBoardSpaceType::Mountain, b: GameBoardSpaceType::Mountain, c: GameBoardSpaceType::Mountain },
         BoardPiece { a: GameBoardSpaceType::Water, b: GameBoardSpaceType::Mountain, c: GameBoardSpaceType::Mountain },
@@ -341,24 +350,22 @@ mod game_constants {
         BoardPiece { a: GameBoardSpaceType::Field, b: GameBoardSpaceType::Forest, c: GameBoardSpaceType::Water },
     ];
 
-    pub const MAX_BOARD_HEIGHT: usize = 14;
-    pub const MAX_BOARD_WIDTH: usize = 17;
+    pub const MAX_BOARD_HEIGHT: usize = 6;
+    pub const MAX_BOARD_WIDTH: usize = 9;
 }
 
 
 // UI data, for now, will be constructed in the main function, and passed by reference where needed.
 struct GameUIData {
     board_state: [[GameBoardSpaceType; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT],
-    last_clicked_pos: Option<GameBoardSpacePos>,
-    last_clicked_type: GameBoardSpaceType
+    pos_under_mouse: Option<GameBoardSpacePos>
 }
 
 impl GameUIData {
     fn defaults() -> GameUIData {
         GameUIData {
-            board_state: [[GameBoardSpaceType::Void; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT],
-            last_clicked_pos: None,
-            last_clicked_type: GameBoardSpaceType::Void
+            board_state: [[GameBoardSpaceType::Water; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT],
+            pos_under_mouse: None
         }
     }
 }
@@ -501,37 +508,12 @@ fn main() {
     let mut game_ui_data = GameUIData::defaults();
     let board_state = &mut game_ui_data.board_state;
 
-    let mut board_piece_idx = 0;
-    for x in 0..6 {
-        for y in 0..6 {
-            let current_board_piece = &game_constants::BOARD_PIECES[board_piece_idx];
-            if ((x % 2 == 0) && (y % 2 == 1)) || ((x % 2 == 1) && (y % 2 == 0)){
-                // One space on the left, two spaces on the right
-                let left_space_pos = GameBoardSpacePos { x_pos: x * 3, y_pos: (y * 5 + 1) / 2 };
-                //let left_space_pos = GameBoardSpacePos { x_pos: x * 2, y_pos: (y * 3 + 1) / 2 };
-                let up_right_space_pos = left_space_pos.up_right();
-                let down_right_space_pos = left_space_pos.down_right();
-                board_state[left_space_pos.y_pos as usize][left_space_pos.x_pos as usize] = current_board_piece.a;
-                board_state[up_right_space_pos.y_pos as usize][up_right_space_pos.x_pos as usize] = current_board_piece.b;
-                board_state[down_right_space_pos.y_pos as usize][down_right_space_pos.x_pos as usize] = current_board_piece.c;
-            }
-            else {
-                // One space on the right, two spaces on the left
-                let down_left_space_pos = GameBoardSpacePos { x_pos: x * 3, y_pos: y * 5 / 2 };
-                //let down_left_space_pos = GameBoardSpacePos { x_pos: x * 2, y_pos: y * 3 / 2 };
-                let up_left_space_pos = down_left_space_pos.up();
-                let right_space_pos = down_left_space_pos.up_right();
-                board_state[down_left_space_pos.y_pos as usize][down_left_space_pos.x_pos as usize] = current_board_piece.a;
-                board_state[up_left_space_pos.y_pos as usize][up_left_space_pos.x_pos as usize] = current_board_piece.b;
-                board_state[right_space_pos.y_pos as usize][right_space_pos.x_pos as usize] = current_board_piece.c;
-            }
-            board_piece_idx = board_piece_idx + 1;
-        }
-    }
+    let mut current_mouse_pos = MousePos { x_pos: 0, y_pos: 0 };
 
     // Loop with label 'main (exited by the break 'main statement)
     'main: loop {
         let mut mouse_clicked = false;
+        let mut mouse_moved = false;
         let mut last_mouse_click_pos = MousePos { x_pos: 0, y_pos: 0 };
 
         // Catch up on every event in the event_pump
@@ -545,6 +527,11 @@ fn main() {
                     last_mouse_click_pos = MousePos { x_pos: x_mouse, y_pos: y_mouse };
                     mouse_clicked = true;
                 }
+                // SDL_MouseMotionEvent
+                sdl2::event::Event::MouseMotion {timestamp: _, window_id: _, which: _, mousestate: _, x: x_mouse, y: y_mouse, xrel: _, yrel: _} => {
+                    current_mouse_pos = MousePos { x_pos: x_mouse, y_pos: y_mouse };
+                    mouse_moved = true;
+                }
                 _ => {}
             }
         }
@@ -555,19 +542,23 @@ fn main() {
             let result = mouse_pos_to_game_board_pos(last_mouse_click_pos, (window_width, window_height));
             match result {
                 Some(game_board_pos) => {
-                    println!("Mouse clicked on  {}, {}", game_board_pos.x_pos, game_board_pos.y_pos);
-                    match game_ui_data.last_clicked_pos {
-                        Some(last_clicked_pos) => {
-                            board_state[last_clicked_pos.y_pos as usize][last_clicked_pos.x_pos as usize] = game_ui_data.last_clicked_type;
-                        }
-                        None => {}
-                    }
-                    game_ui_data.last_clicked_pos = Some(GameBoardSpacePos { x_pos: game_board_pos.x_pos, y_pos: game_board_pos.y_pos });
-                    game_ui_data.last_clicked_type = board_state[game_board_pos.y_pos as usize][game_board_pos.x_pos as usize];
-                    board_state[game_board_pos.y_pos as usize][game_board_pos.x_pos as usize] = GameBoardSpaceType::Void;
+                    let old_type_under_mouse = board_state[game_board_pos.y_pos as usize][game_board_pos.x_pos as usize];
+                    let new_type_under_mouse = match old_type_under_mouse {
+                        GameBoardSpaceType::Void => GameBoardSpaceType::Water,
+                        GameBoardSpaceType::Water => GameBoardSpaceType::Mountain,
+                        GameBoardSpaceType::Mountain => GameBoardSpaceType::Forest,
+                        GameBoardSpaceType::Forest => GameBoardSpaceType::Plains,
+                        GameBoardSpaceType::Plains => GameBoardSpaceType::Field,
+                        GameBoardSpaceType::Field => GameBoardSpaceType::Void
+                    };
+                    board_state[game_board_pos.y_pos as usize][game_board_pos.x_pos as usize] = new_type_under_mouse;
                 }
-                None => { println!("Out of bounds") }
+                None => {}
             }
+        }
+
+        if mouse_moved {
+            game_ui_data.pos_under_mouse = mouse_pos_to_game_board_pos(current_mouse_pos, (window_width, window_height));
         }
 
         // Clear the color buffer.
@@ -580,6 +571,10 @@ fn main() {
             for y in 0..game_constants::MAX_BOARD_HEIGHT {
                 draw_game_board_space(&gl, &shader_program, board_state[y][x], GameBoardSpacePos {x_pos: x as u8, y_pos: y as u8});
             }
+        }
+        match game_ui_data.pos_under_mouse {
+            Some(pos_under_mouse) => { draw_outline(&gl, &shader_program, pos_under_mouse); }
+            None => {}
         }
         drawing::draw_point(&gl, &shader_program);
 
