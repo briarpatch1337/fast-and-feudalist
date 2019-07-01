@@ -82,7 +82,7 @@ impl GameBoardSpacePos {
     fn up_right(&self) -> GameBoardSpacePos {
         GameBoardSpacePos {
             x_pos: self.x_pos + 1,
-            y_pos: if self.x_pos % 2 == 0 {self.y_pos + 1} else {self.y_pos}
+            y_pos: if self.x_pos % 2 == 1 {self.y_pos + 1} else {self.y_pos}
         }
     }
 
@@ -90,7 +90,7 @@ impl GameBoardSpacePos {
     fn down_right(&self) -> GameBoardSpacePos {
         GameBoardSpacePos {
             x_pos: self.x_pos + 1,
-            y_pos: if self.x_pos % 2 == 0 {self.y_pos} else {self.y_pos - 1}
+            y_pos: if self.x_pos % 2 == 1 {self.y_pos} else {self.y_pos - 1}
         }
     }
 
@@ -106,7 +106,7 @@ impl GameBoardSpacePos {
     fn down_left(&self) -> GameBoardSpacePos {
         GameBoardSpacePos {
             x_pos: self.x_pos - 1,
-            y_pos: if self.x_pos % 2 == 0 {self.y_pos} else {self.y_pos - 1}
+            y_pos: if self.x_pos % 2 == 1 {self.y_pos} else {self.y_pos - 1}
         }
     }
 
@@ -114,7 +114,7 @@ impl GameBoardSpacePos {
     fn up_left(&self) -> GameBoardSpacePos {
         GameBoardSpacePos {
             x_pos: self.x_pos - 1,
-            y_pos: if self.x_pos % 2 == 0 {self.y_pos + 1} else {self.y_pos}
+            y_pos: if self.x_pos % 2 == 1 {self.y_pos + 1} else {self.y_pos}
         }
     }
 }
@@ -127,6 +127,7 @@ struct MousePos {
 mod drawing_constants {
     pub const HEXAGON_WIDTH: f32 = 0.10;
 }
+
 
 fn game_board_pos_to_drawing_pos(position: GameBoardSpacePos) -> drawing::PositionSpec {
     // Specifying f32 (single-precision float) as the type initially
@@ -151,7 +152,7 @@ fn game_board_pos_to_drawing_pos(position: GameBoardSpacePos) -> drawing::Positi
 
     let y_pos_translated = game_board_origin_y + position.y_pos as f32 * hexagon_y_spacing
         +
-        if position.x_pos % 2 == 0 { hexagon_height / 2.0 }
+        if position.x_pos % 2 == 1 { hexagon_height / 2.0 }
         else { 0.0 };
 
     drawing::PositionSpec { x: x_pos_translated, y: y_pos_translated }
@@ -257,7 +258,7 @@ mod game_constants {
         BoardPiece { a: GameBoardSpaceType::Field, b: GameBoardSpaceType::Forest, c: GameBoardSpaceType::Water },
     ];
 
-    pub const MAX_BOARD_HEIGHT: usize = 15;
+    pub const MAX_BOARD_HEIGHT: usize = 14;
     pub const MAX_BOARD_WIDTH: usize = 17;
 }
 
@@ -417,7 +418,7 @@ fn main() {
     for x in 0..6 {
         for y in 0..6 {
             let current_board_piece = &game_constants::BOARD_PIECES[board_piece_idx];
-            if ((x % 2 == 0) && (y % 2 == 0)) || ((x % 2 == 1) && (y % 2 == 1)){
+            if ((x % 2 == 0) && (y % 2 == 1)) || ((x % 2 == 1) && (y % 2 == 0)){
                 // One space on the left, two spaces on the right
                 let left_space_pos = GameBoardSpacePos { x_pos: x * 3, y_pos: (y * 5 + 1) / 2 };
                 //let left_space_pos = GameBoardSpacePos { x_pos: x * 2, y_pos: (y * 3 + 1) / 2 };
@@ -473,8 +474,8 @@ fn main() {
         }
 
         // Draw
-        for x in 0..17 {
-            for y in 0..15 {
+        for x in 0..game_constants::MAX_BOARD_WIDTH {
+            for y in 0..game_constants::MAX_BOARD_HEIGHT {
                 draw_game_board_space(&gl, &shader_program, board_state[y][x], GameBoardSpacePos {x_pos: x as u8, y_pos: y as u8});
             }
         }
