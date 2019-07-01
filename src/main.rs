@@ -125,34 +125,117 @@ struct MousePos {
 }
 
 mod drawing_constants {
+    use game_constants;
+
     pub const HEXAGON_WIDTH: f32 = 0.10;
+
+    // Because of the way the hexagons are staggered, the x spacing of columns is 3/4 of a hexagon width.
+    pub const HEXAGON_X_SPACING: f32 = HEXAGON_WIDTH * 0.75;
+    pub const GAME_BOARD_ORIGIN_X: f32 = -1.0 * (game_constants::MAX_BOARD_WIDTH / 2) as f32 * HEXAGON_X_SPACING - (HEXAGON_WIDTH / 2.0);
+
+    // The height of a hexagon (turned with the points to the side) is width * sqrt(3) / 2.
+    // sqrt(3) / 2 = 0.8660254
+    pub const HEXAGON_HEIGHT: f32 =  HEXAGON_WIDTH * 0.8660254_f32;
+    pub const HEXAGON_Y_SPACING: f32 = HEXAGON_HEIGHT;
+    pub const GAME_BOARD_ORIGIN_Y: f32 = -1.0 * (game_constants::MAX_BOARD_HEIGHT / 2) as f32 * HEXAGON_Y_SPACING - (HEXAGON_HEIGHT / 2.0);
+}
+
+
+fn mouse_pos_to_drawing_pos(mouse_position: MousePos, drawable_size: (u32, u32)) -> drawing::PositionSpec {
+    let (window_width, window_height) = drawable_size;
+    let aspect_ratio = window_width as f32 / window_height as f32;
+
+    // aspect_ratio is W/H
+    let mut x_scale = 1_f32;
+    let mut y_scale = 1_f32;
+    if aspect_ratio >= 1.0 {
+        x_scale = 1.0 / aspect_ratio;
+    } else {
+        y_scale = aspect_ratio;
+    }
+
+    let drawing_x = (mouse_position.x_pos - (window_width as i32/ 2)) as f32 / window_width as f32 * 2.0 / x_scale;
+    let drawing_y = ((window_height as i32 / 2) - mouse_position.y_pos) as f32 / window_height as f32 * 2.0 / y_scale;
+
+    drawing::PositionSpec { x: drawing_x, y: drawing_y }
+}
+
+
+fn mouse_pos_to_game_board_pos(mouse_position: MousePos, drawable_size: (u32, u32)) -> Option<GameBoardSpacePos> {
+    let drawing_pos = mouse_pos_to_drawing_pos(mouse_position, drawable_size);
+
+    let from_game_board_origin_x = drawing_pos.x - drawing_constants::GAME_BOARD_ORIGIN_X;
+    let from_game_board_origin_y = drawing_pos.y - drawing_constants::GAME_BOARD_ORIGIN_Y;
+
+    // Cut the hexagons into quarters on the x axis, and halves on the y axis.
+    // The two center quarters form rectangles, and the two outter quarters form triangles.
+    // It's easy to know which hexagon the mouse pos is in if it falls in a rectangle.
+    // It's a little bit trickier if the mouse pos is in one of the triangles.
+
+    let scaled_x = from_game_board_origin_x / drawing_constants::HEXAGON_WIDTH * 4.0;
+    let scaled_y = from_game_board_origin_y / drawing_constants::HEXAGON_HEIGHT * 2.0;
+
+    let rounded_x = scaled_x.floor() as i32;
+    let rounded_y = scaled_y.floor() as i32;
+
+    // Because of the way the hexagons are staggered, every three quarters is a new column.
+
+    let x_pos_game = rounded_x / 3 -
+        if rounded_x % 3 == 0 {
+            // Mouse pos is in a triangle. Determine if it was to the left or right of the diagonal line.
+            if (rounded_x % 6 == 0 && rounded_y % 2 == 1) || (rounded_x % 6 == 3 && rounded_y % 2 == 0) {
+                // positive slope
+                if scaled_y - scaled_y.floor() < (scaled_x - scaled_x.floor()) * 2.0 {
+                    // right
+                    0
+                }
+                else {
+                    // left
+                    1
+                }
+            } else {
+                // negative slope
+                if scaled_y - (scaled_y + 1.0).floor() < (scaled_x - scaled_x.floor()) * -2.0 {
+                    // left
+                    1
+                } else {
+                    // right
+                    0
+                }
+            }
+        } else {
+            // Mouse pos is in a rectangle.
+            0
+        };
+
+    let shifted_y = rounded_y - if x_pos_game % 2 == 1 { 1 } else { 0 };
+    let y_pos_game = shifted_y / 2;
+
+    if rounded_x < 0 || x_pos_game < 0 || x_pos_game >= game_constants::MAX_BOARD_WIDTH as i32 || shifted_y < 0 || y_pos_game >= game_constants::MAX_BOARD_HEIGHT as i32 {
+        return None;
+    }
+
+    Some(GameBoardSpacePos { x_pos: x_pos_game as u8, y_pos: y_pos_game as u8})
 }
 
 
 fn game_board_pos_to_drawing_pos(position: GameBoardSpacePos) -> drawing::PositionSpec {
-    // Specifying f32 (single-precision float) as the type initially
-    // makes it that f32 is the type that will be used
-    // to store results for the rest of the function.
-    let hexagon_width: f32 = drawing_constants::HEXAGON_WIDTH;
-
-    // Because of the way the hexagons are staggered, the x spacing of columns is 3/4 of a hexagon width.
-    let hexagon_x_spacing = hexagon_width * 0.75;
-    let game_board_origin_x = -1.0 * (game_constants::MAX_BOARD_WIDTH / 2) as f32 * hexagon_x_spacing;
-
-    // The height of a hexagon (turned with the points to the side) is width * sqrt(3) / 2.
-    // Need to be explicit about the type of the number 3, in order to call sqrt().
-    let hexagon_height =  hexagon_width * 3_f32.sqrt()/2.0;
-    let hexagon_y_spacing = hexagon_height;
-    let game_board_origin_y = -1.0 * (game_constants::MAX_BOARD_HEIGHT / 2) as f32 * hexagon_y_spacing;
-
-    let x_pos_translated = game_board_origin_x + position.x_pos as f32 * hexagon_x_spacing;
+    let x_pos_translated = drawing_constants::GAME_BOARD_ORIGIN_X
+        +
+        (drawing_constants::HEXAGON_WIDTH / 2.0)
+        +
+        position.x_pos as f32 * drawing_constants::HEXAGON_X_SPACING;
 
     // This is like a ternary operator, but more verbose.  I think it's easier to read.
     // Even numbered columns will be half a hexagon height higher than odd numbered columns.
 
-    let y_pos_translated = game_board_origin_y + position.y_pos as f32 * hexagon_y_spacing
+    let y_pos_translated = drawing_constants::GAME_BOARD_ORIGIN_Y
         +
-        if position.x_pos % 2 == 1 { hexagon_height / 2.0 }
+        (drawing_constants::HEXAGON_HEIGHT / 2.0)
+        +
+        position.y_pos as f32 * drawing_constants::HEXAGON_Y_SPACING
+        +
+        if position.x_pos % 2 == 1 { drawing_constants::HEXAGON_HEIGHT / 2.0 }
         else { 0.0 };
 
     drawing::PositionSpec { x: x_pos_translated, y: y_pos_translated }
@@ -265,13 +348,17 @@ mod game_constants {
 
 // UI data, for now, will be constructed in the main function, and passed by reference where needed.
 struct GameUIData {
-    board_state: [[GameBoardSpaceType; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT]
+    board_state: [[GameBoardSpaceType; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT],
+    last_clicked_pos: Option<GameBoardSpacePos>,
+    last_clicked_type: GameBoardSpaceType
 }
 
 impl GameUIData {
     fn defaults() -> GameUIData {
         GameUIData {
-            board_state: [[GameBoardSpaceType::Void; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT]
+            board_state: [[GameBoardSpaceType::Void; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT],
+            last_clicked_pos: None,
+            last_clicked_type: GameBoardSpaceType::Void
         }
     }
 }
@@ -465,7 +552,22 @@ fn main() {
         // No more events to handle
 
         if mouse_clicked {
-            println!("Mouse clicked on {}, {}", last_mouse_click_pos.x_pos, last_mouse_click_pos.y_pos);
+            let result = mouse_pos_to_game_board_pos(last_mouse_click_pos, (window_width, window_height));
+            match result {
+                Some(game_board_pos) => {
+                    println!("Mouse clicked on  {}, {}", game_board_pos.x_pos, game_board_pos.y_pos);
+                    match game_ui_data.last_clicked_pos {
+                        Some(last_clicked_pos) => {
+                            board_state[last_clicked_pos.y_pos as usize][last_clicked_pos.x_pos as usize] = game_ui_data.last_clicked_type;
+                        }
+                        None => {}
+                    }
+                    game_ui_data.last_clicked_pos = Some(GameBoardSpacePos { x_pos: game_board_pos.x_pos, y_pos: game_board_pos.y_pos });
+                    game_ui_data.last_clicked_type = board_state[game_board_pos.y_pos as usize][game_board_pos.x_pos as usize];
+                    board_state[game_board_pos.y_pos as usize][game_board_pos.x_pos as usize] = GameBoardSpaceType::Void;
+                }
+                None => { println!("Out of bounds") }
+            }
         }
 
         // Clear the color buffer.
