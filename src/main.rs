@@ -128,7 +128,7 @@ struct MousePos {
 mod drawing_constants {
     use game_constants;
 
-    pub const HEXAGON_WIDTH: f32 = 0.30;
+    pub const HEXAGON_WIDTH: f32 = 0.25;
 
     // Because of the way the hexagons are staggered, the x spacing of columns is 3/4 of a hexagon width.
     pub const HEXAGON_X_SPACING: f32 = HEXAGON_WIDTH * 0.75;
@@ -280,18 +280,36 @@ fn color_for_game_board_space_type(space_type: GameBoardSpaceType) -> drawing::C
 
 
 fn draw_game_board_space(gl: &gl::Gl, shader_program: &render_gl::Program, space_type: GameBoardSpaceType, position: GameBoardSpacePos) {
-    drawing::draw_hexagon(&gl, &shader_program, drawing::HexagonSpec {
-        color: color_for_game_board_space_type(space_type),
-        pos: game_board_pos_to_drawing_pos(position),
-        width: drawing_constants::HEXAGON_WIDTH } );
+    match space_type {
+        GameBoardSpaceType::Void => {
+            drawing::draw_hexagon_outline(
+                &gl,
+                &shader_program,
+                drawing::HexagonSpec {
+                    color: drawing::ColorSpec { r: 0xFF, g: 0xFF, b: 0xFF },
+                    pos: game_board_pos_to_drawing_pos(position),
+                    width: drawing_constants::HEXAGON_WIDTH },
+                2.0);
+        },
+        _ => {
+            drawing::draw_hexagon(&gl, &shader_program, drawing::HexagonSpec {
+            color: color_for_game_board_space_type(space_type),
+            pos: game_board_pos_to_drawing_pos(position),
+            width: drawing_constants::HEXAGON_WIDTH } );
+        }
+    }
 }
 
 
 fn draw_outline(gl: &gl::Gl, shader_program: &render_gl::Program, position: GameBoardSpacePos) {
-    drawing::draw_hexagon_outline(&gl, &shader_program, drawing::HexagonSpec {
-        color: drawing::ColorSpec { r: 0xFF, g: 0xFF, b: 0xFF },
-        pos: game_board_pos_to_drawing_pos(position),
-        width: drawing_constants::HEXAGON_WIDTH } );
+    drawing::draw_hexagon_outline(
+        &gl,
+        &shader_program,
+        drawing::HexagonSpec {
+            color: drawing::ColorSpec { r: 0xFF, g: 0xFF, b: 0xFF },
+            pos: game_board_pos_to_drawing_pos(position),
+            width: drawing_constants::HEXAGON_WIDTH },
+        3.0);
 }
 
 // a, b, c spaces are in clockwise order
@@ -364,7 +382,7 @@ struct GameUIData {
 impl GameUIData {
     fn defaults() -> GameUIData {
         GameUIData {
-            board_state: [[GameBoardSpaceType::Water; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT],
+            board_state: [[GameBoardSpaceType::Void; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT],
             pos_under_mouse: None
         }
     }

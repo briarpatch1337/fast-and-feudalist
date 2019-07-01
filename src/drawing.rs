@@ -220,7 +220,7 @@ pub fn draw_hexagon(gl: &gl::Gl, shader_program: &render_gl::Program, hex_spec: 
 }
 
 
-pub fn draw_hexagon_outline(gl: &gl::Gl, shader_program: &render_gl::Program, hex_spec: HexagonSpec) {
+pub fn draw_hexagon_outline(gl: &gl::Gl, shader_program: &render_gl::Program, hex_spec: HexagonSpec, line_width: f32) {
     shader_program.set_used();
 
     let hexagon_width = hex_spec.width;
@@ -277,7 +277,7 @@ pub fn draw_hexagon_outline(gl: &gl::Gl, shader_program: &render_gl::Program, he
         gl.EnableVertexAttribArray(1);
     }
     unsafe {
-        gl.LineWidth(3.0);
+        gl.LineWidth(line_width);
         gl.DrawArrays(
             gl::LINE_LOOP, // mode
             0, // starting index in the enabled arrays
