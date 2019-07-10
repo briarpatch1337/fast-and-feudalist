@@ -15,6 +15,7 @@ extern crate gl;
 // SDL provides exported functions that implement the OpenGL spec.
 extern crate sdl2;
 
+extern crate freetype;
 extern crate glm;
 extern crate rand;
 
@@ -425,18 +426,19 @@ fn main() {
     gl_attr.set_context_version(4, 5);
 
     // Initializes a new WindowBuilder, sets the window to be usable with an OpenGL context,
-    // sets the window to be fullscreen at desktop resolution, builds the window, and checks for errors.
+    // sets the window to be fullscreen at 1080 HD, builds the window, and checks for errors.
     // The Window allows you to get and set many of the SDL_Window properties (i.e., border, size, PixelFormat, etc)
     // However, you cannot directly access the pixels of the Window without a context.
 
     let window = video_subsystem
-        .window("Game", 0, 0)
+        .window("Game", 1920, 1080)
         .opengl()
-        .fullscreen_desktop()
+        .fullscreen()
         .build()
         .unwrap();
 
     let (window_width, window_height) = window.drawable_size();
+    let (ddpi, hdpi, vdpi) = video_subsystem.display_dpi(0).unwrap();
     let aspect_ratio = window_width as f32 / window_height as f32;
 
     // SDL_GL_CreateContext
@@ -468,6 +470,9 @@ fn main() {
         // Whenever we call glClear and clear the color buffer, the entire color buffer will be filled with the color as configured by glClearColor.
 
         gl.ClearColor(0.0, 0.0, 0.0, 1.0); // black, fully opaque
+
+        gl.Enable(gl::BLEND);
+        gl.BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
     }
 
     // SDL_GetTicks
@@ -507,6 +512,11 @@ fn main() {
 
     audio_device.resume();
 
+    // Fonts
+    let freetype_lib = freetype::Library::init().unwrap();
+    let cardinal_font_face = freetype_lib.new_face(Path::new("assets/fonts/Cardinal.ttf"), 0).unwrap();
+    let mut text_cache = drawing::TextCache::new();
+
     // Obtains the SDL event pump.
     // At most one EventPump is allowed to be alive during the program's execution. If this function is called while an EventPump instance is alive, the function will return an error.
 
@@ -515,6 +525,7 @@ fn main() {
     // render_gl is a different module in this project with helper functions.  See render_gl.rs .
     // Compile and link a program with shaders that match this file name
     let shader_program = render_gl::Program::from_res(&gl, &res, "shaders/basic").unwrap();
+    let text_program = render_gl::Program::from_res(&gl, &res, "shaders/text").unwrap();
     drawing::write_scale_data(&gl, &shader_program, aspect_ratio);
     drawing::write_rotate_data(&gl, &shader_program, 0.0);
 
@@ -527,6 +538,15 @@ fn main() {
     let board_state = &mut game_ui_data.board_state;
 
     let mut current_mouse_pos = MousePos { x_pos: 0, y_pos: 0 };
+
+    let mut text_drawing_baggage = drawing::TextDrawingBaggage {
+        gl: gl.clone(),
+        shader_program: text_program,
+        drawable_size: (window_width, window_height),
+        display_dpi: (ddpi, hdpi, vdpi),
+        font_face: cardinal_font_face,
+        text_cache: text_cache
+    };
 
     // Loop with label 'main (exited by the break 'main statement)
     'main: loop {
@@ -595,6 +615,22 @@ fn main() {
             None => {}
         }
         drawing::draw_point(&gl, &shader_program);
+
+        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: 0.85 }, 50, "Fast and Feudalist".to_string(), drawing::ColorSpec { r: 0xFF, g: 0xD7, b: 0x00 });
+
+        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 25, "Game Setup".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.18, y: 0.82 }, 18, "Lay board game pieces to build the map.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+
+        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: 0.70 }, 20, "5 cities".to_string(),      drawing::ColorSpec { r: 0xFF, g: 0x40, b: 0x40 });
+        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: 0.62 }, 20, "14 villages".to_string(),   drawing::ColorSpec { r: 0xFF, g: 0x40, b: 0x40 });
+        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: 0.54 }, 20, "2 strongholds".to_string(), drawing::ColorSpec { r: 0xFF, g: 0x40, b: 0x40 });
+        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: 0.46 }, 20, "7 knights".to_string(),     drawing::ColorSpec { r: 0xFF, g: 0x40, b: 0x40 });
+
+        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.30 }, 25, "Water".to_string(),        color_for_game_board_space_type(GameBoardSpaceType::Water));
+        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.40 }, 25, "Mountain = 2".to_string(), color_for_game_board_space_type(GameBoardSpaceType::Mountain));
+        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.50 }, 25, "Forest = 3".to_string(),   color_for_game_board_space_type(GameBoardSpaceType::Forest));
+        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.60 }, 25, "Plains = 4".to_string(),   color_for_game_board_space_type(GameBoardSpaceType::Plains));
+        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.70 }, 25, "Field = 5".to_string(),    color_for_game_board_space_type(GameBoardSpaceType::Field));
 
         // Swap the window pixels with what we have just rendered
         window.gl_swap_window();

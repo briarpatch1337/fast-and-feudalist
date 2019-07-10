@@ -7,6 +7,7 @@ authors = ["briarpatch1337 <briarpatch1337@gmail.com>"]
 gl_debug = ["gl/debug"]
 
 [dependencies]
+freetype-rs = "0.20.0"
 gl = { path = "lib/gl" }
 glm = "0.2.3"
 rand = "0.5"
