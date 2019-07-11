@@ -794,9 +794,9 @@ fn main() {
                     y: drawing_constants::HEXAGON_Y_SPACING * game_constants::MAX_BOARD_HEIGHT as f32 + 0.5 * drawing_constants::HEXAGON_HEIGHT}},
             3.0);
 
-        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: 0.85 }, 50, "Fast and Feudalist".to_string(), drawing::ColorSpec { r: 0xFF, g: 0xD7, b: 0x00 });
+        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: 0.85 }, 48, "Fast and Feudalist".to_string(), drawing::ColorSpec { r: 0xFF, g: 0xD7, b: 0x00 });
 
-        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 25, "Game Setup".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "Game Setup".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
         drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.18, y: 0.82 }, 18, "Lay board game pieces to build the map.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
 
         drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: 0.70 }, 20, "5 cities".to_string(),      drawing::ColorSpec { r: 0xFF, g: 0x40, b: 0x40 });
@@ -804,11 +804,11 @@ fn main() {
         drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: 0.54 }, 20, "2 strongholds".to_string(), drawing::ColorSpec { r: 0xFF, g: 0x40, b: 0x40 });
         drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: 0.46 }, 20, "7 knights".to_string(),     drawing::ColorSpec { r: 0xFF, g: 0x40, b: 0x40 });
 
-        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.30 }, 25, "Water".to_string(),        color_for_game_board_space_type(GameBoardSpaceType::Water));
-        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.40 }, 25, "Mountain = 2".to_string(), color_for_game_board_space_type(GameBoardSpaceType::Mountain));
-        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.50 }, 25, "Forest = 3".to_string(),   color_for_game_board_space_type(GameBoardSpaceType::Forest));
-        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.60 }, 25, "Plains = 4".to_string(),   color_for_game_board_space_type(GameBoardSpaceType::Plains));
-        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.70 }, 25, "Field = 5".to_string(),    color_for_game_board_space_type(GameBoardSpaceType::Field));
+        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.30 }, 24, "Water".to_string(),        color_for_game_board_space_type(GameBoardSpaceType::Water));
+        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.40 }, 24, "Mountain = 2".to_string(), color_for_game_board_space_type(GameBoardSpaceType::Mountain));
+        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.50 }, 24, "Forest = 3".to_string(),   color_for_game_board_space_type(GameBoardSpaceType::Forest));
+        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.60 }, 24, "Plains = 4".to_string(),   color_for_game_board_space_type(GameBoardSpaceType::Plains));
+        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.70 }, 24, "Field = 5".to_string(),    color_for_game_board_space_type(GameBoardSpaceType::Field));
 
         // Swap the window pixels with what we have just rendered
         window.gl_swap_window();
