@@ -291,6 +291,86 @@ pub fn draw_hexagon_outline(gl: &gl::Gl, shader_program: &render_gl::Program, he
 }
 
 
+pub struct SizeSpec {
+    pub x: f32,
+    pub y: f32
+}
+
+
+pub struct RectangleSpec {
+    pub color: ColorSpec,
+    pub pos: PositionSpec,
+    pub size: SizeSpec,
+}
+
+
+pub fn draw_rectangle_outline(gl: &gl::Gl, shader_program: &render_gl::Program, rect_spec: RectangleSpec, line_width: f32) {
+    shader_program.set_used();
+
+    let rectangle_width = rect_spec.size.x;
+    let rectangle_height =  rect_spec.size.y;
+    let x_pos = rect_spec.pos.x;
+    let y_pos = rect_spec.pos.y;
+    let r_color = rect_spec.color.r as f32 / 255.0;
+    let g_color = rect_spec.color.g as f32 / 255.0;
+    let b_color = rect_spec.color.b as f32 / 255.0;
+
+    //TODO the positioning additions can move to the GPU.
+    let vertices: Vec<f32> = vec![
+        x_pos,                   y_pos,                    0.0, r_color, g_color, b_color,
+        x_pos + rectangle_width, y_pos,                    0.0, r_color, g_color, b_color,
+        x_pos + rectangle_width, y_pos + rectangle_height, 0.0, r_color, g_color, b_color,
+        x_pos,                   y_pos + rectangle_height, 0.0, r_color, g_color, b_color,
+    ];
+    let mut vbo: gl::types::GLuint = 0;
+    unsafe {
+        gl.GenBuffers(1, &mut vbo);
+    }
+    unsafe {
+        gl.BindBuffer(gl::ARRAY_BUFFER, vbo);
+        gl.BufferData(
+            gl::ARRAY_BUFFER,
+            (vertices.len() * std::mem::size_of::<f32>()) as gl::types::GLsizeiptr,
+            vertices.as_ptr() as *const gl::types::GLvoid,
+            gl::STATIC_DRAW
+        );
+    }
+    let mut vao: gl::types::GLuint = 0;
+    unsafe {
+        gl.GenVertexArrays(1, &mut vao);
+        gl.BindVertexArray(vao);
+        gl.VertexAttribPointer(
+            0,
+            3,
+            gl::FLOAT,
+            gl::FALSE,
+            (6 * std::mem::size_of::<f32>()) as gl::types::GLint,
+            std::ptr::null()
+        );
+        gl.EnableVertexAttribArray(0);
+        gl.VertexAttribPointer(
+            1,
+            3,
+            gl::FLOAT,
+            gl::FALSE,
+            (6 * std::mem::size_of::<f32>()) as gl::types::GLint,
+            (3 * std::mem::size_of::<f32>()) as *const gl::types::GLvoid
+        );
+        gl.EnableVertexAttribArray(1);
+    }
+    unsafe {
+        gl.LineWidth(line_width);
+        gl.DrawArrays(
+            gl::LINE_LOOP, // mode
+            0, // starting index in the enabled arrays
+            4 // number of indices to be rendered
+        );
+        gl.DeleteVertexArrays(1, &mut vao);
+        gl.DeleteBuffers(1, &mut vbo);
+    }
+}
+
+
 pub struct CharacterTexture {
     pub texture_id: gl::types::GLuint,
     pub bitmap_size: glm::IVec2,

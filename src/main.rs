@@ -37,10 +37,11 @@ pub mod resources;
 // And some more
 pub mod drawing;
 
+use rand::Rng;
 use resources::Resources;
 use std::path::Path;
 
-#[derive(Copy,Clone)]
+#[derive(Copy,Clone,PartialEq)]
 enum GameBoardSpaceType
 {
     Void,
@@ -139,7 +140,7 @@ mod drawing_constants {
     // sqrt(3) / 2 = 0.8660254
     pub const HEXAGON_HEIGHT: f32 =  HEXAGON_WIDTH * 0.8660254_f32;
     pub const HEXAGON_Y_SPACING: f32 = HEXAGON_HEIGHT;
-    pub const GAME_BOARD_ORIGIN_Y: f32 = -1.0 * (game_constants::MAX_BOARD_HEIGHT / 2) as f32 * HEXAGON_Y_SPACING - (HEXAGON_HEIGHT / 2.0);
+    pub const GAME_BOARD_ORIGIN_Y: f32 = -1.0 * (game_constants::MAX_BOARD_HEIGHT / 2) as f32 * HEXAGON_Y_SPACING - (HEXAGON_HEIGHT * 3.0 / 4.0);
 }
 
 
@@ -163,7 +164,7 @@ fn mouse_pos_to_drawing_pos(mouse_position: MousePos, drawable_size: (u32, u32))
 }
 
 
-fn mouse_pos_to_game_board_pos(mouse_position: MousePos, drawable_size: (u32, u32)) -> Option<GameBoardSpacePos> {
+fn _mouse_pos_to_game_board_pos(mouse_position: MousePos, drawable_size: (u32, u32)) -> Option<GameBoardSpacePos> {
     let drawing_pos = mouse_pos_to_drawing_pos(mouse_position, drawable_size);
 
     let from_game_board_origin_x = drawing_pos.x - drawing_constants::GAME_BOARD_ORIGIN_X;
@@ -334,13 +335,13 @@ fn mouse_pos_to_board_piece_destination(mouse_position: MousePos, drawable_size:
                     0
                 }
         };
-        let lower_right_pos = left_pos.down_right();
         let upper_right_pos = left_pos.up_right();
+        let lower_right_pos = left_pos.down_right();
 
         Some((
             left_pos,
-            lower_right_pos,
-            upper_right_pos
+            upper_right_pos,
+            lower_right_pos
         ))
     }
 }
@@ -407,16 +408,7 @@ fn color_for_game_board_space_type(space_type: GameBoardSpaceType) -> drawing::C
 
 fn draw_game_board_space(gl: &gl::Gl, shader_program: &render_gl::Program, space_type: GameBoardSpaceType, position: GameBoardSpacePos) {
     match space_type {
-        GameBoardSpaceType::Void => {
-            drawing::draw_hexagon_outline(
-                &gl,
-                &shader_program,
-                drawing::HexagonSpec {
-                    color: drawing::ColorSpec { r: 0xFF, g: 0xFF, b: 0xFF },
-                    pos: game_board_pos_to_drawing_pos(position),
-                    width: drawing_constants::HEXAGON_WIDTH },
-                2.0);
-        },
+        GameBoardSpaceType::Void => {},
         _ => {
             drawing::draw_hexagon(&gl, &shader_program, drawing::HexagonSpec {
             color: color_for_game_board_space_type(space_type),
@@ -458,6 +450,7 @@ fn highlight_space(gl: &gl::Gl, shader_program: &render_gl::Program, space_type:
 
 
 // a, b, c spaces are in clockwise order
+#[derive(Clone)]
 pub struct BoardPiece {
     a: GameBoardSpaceType,
     b: GameBoardSpaceType,
@@ -469,7 +462,7 @@ mod game_constants {
     use GameBoardSpaceType;
     use BoardPiece;
 
-    pub const _BOARD_PIECES: [BoardPiece; 36] = [
+    pub const BOARD_PIECES: [BoardPiece; 36] = [
     // Mostly Mountain (6)
         BoardPiece { a: GameBoardSpaceType::Mountain, b: GameBoardSpaceType::Mountain, c: GameBoardSpaceType::Mountain },
         BoardPiece { a: GameBoardSpaceType::Water, b: GameBoardSpaceType::Mountain, c: GameBoardSpaceType::Mountain },
@@ -521,14 +514,16 @@ mod game_constants {
 // UI data, for now, will be constructed in the main function, and passed by reference where needed.
 struct GameUIData {
     board_state: [[GameBoardSpaceType; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT],
-    pos_under_mouse: Option<(GameBoardSpacePos, GameBoardSpacePos, GameBoardSpacePos)>
+    pos_under_mouse: Option<(GameBoardSpacePos, GameBoardSpacePos, GameBoardSpacePos)>,
+    unplaced_board_pieces: std::vec::Vec<BoardPiece>
 }
 
 impl GameUIData {
     fn defaults() -> GameUIData {
         GameUIData {
             board_state: [[GameBoardSpaceType::Void; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT],
-            pos_under_mouse: None
+            pos_under_mouse: None,
+            unplaced_board_pieces: game_constants::BOARD_PIECES.to_vec()
         }
     }
 }
@@ -721,19 +716,37 @@ fn main() {
         // No more events to handle
 
         if mouse_clicked {
-            let result = mouse_pos_to_game_board_pos(last_mouse_click_pos, (window_width, window_height));
+            let result = mouse_pos_to_board_piece_destination(last_mouse_click_pos, (window_width, window_height));
             match result {
-                Some(game_board_pos) => {
-                    let old_type_under_mouse = board_state[game_board_pos.y_pos as usize][game_board_pos.x_pos as usize];
-                    let new_type_under_mouse = match old_type_under_mouse {
-                        GameBoardSpaceType::Void => GameBoardSpaceType::Water,
-                        GameBoardSpaceType::Water => GameBoardSpaceType::Mountain,
-                        GameBoardSpaceType::Mountain => GameBoardSpaceType::Forest,
-                        GameBoardSpaceType::Forest => GameBoardSpaceType::Plains,
-                        GameBoardSpaceType::Plains => GameBoardSpaceType::Field,
-                        GameBoardSpaceType::Field => GameBoardSpaceType::Void
-                    };
-                    board_state[game_board_pos.y_pos as usize][game_board_pos.x_pos as usize] = new_type_under_mouse;
+                Some((pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c)) => {
+                    let x_a = pos_under_mouse_a.x_pos as usize;
+                    let y_a = pos_under_mouse_a.y_pos as usize;
+                    let x_b = pos_under_mouse_b.x_pos as usize;
+                    let y_b = pos_under_mouse_b.y_pos as usize;
+                    let x_c = pos_under_mouse_c.x_pos as usize;
+                    let y_c = pos_under_mouse_c.y_pos as usize;
+
+                    if
+                        board_state[y_a][x_a] == GameBoardSpaceType::Void &&
+                        board_state[y_b][x_b] == GameBoardSpaceType::Void &&
+                        board_state[y_c][x_c] == GameBoardSpaceType::Void
+                    {
+                        // pick a card, any card.
+                        let old_len = game_ui_data.unplaced_board_pieces.len();
+                        let new_game_piece = game_ui_data.unplaced_board_pieces.remove(rand::thread_rng().gen_range(0, old_len));
+
+                        // randomize the orientation
+                        let (new_a, new_b, new_c) =
+                            match rand::thread_rng().gen_range(0, 3) {
+                                0 => (new_game_piece.a, new_game_piece.b, new_game_piece.c),
+                                1 => (new_game_piece.b, new_game_piece.c, new_game_piece.a),
+                                _ => (new_game_piece.c, new_game_piece.a, new_game_piece.b)
+                            };
+                        board_state[y_a][x_a] = new_a;
+                        board_state[y_b][x_b] = new_b;
+                        board_state[y_c][x_c] = new_c;
+                    }
+
                 }
                 None => {}
             }
@@ -768,7 +781,18 @@ fn main() {
             }
             None => {}
         }
-        drawing::draw_point(&gl, &shader_program);
+        drawing::draw_rectangle_outline(
+            &gl,
+            &shader_program,
+            drawing::RectangleSpec {
+                color: drawing::ColorSpec { r: 0xFF, g: 0xFF, b: 0xFF },
+                pos: drawing::PositionSpec {
+                    x: drawing_constants::GAME_BOARD_ORIGIN_X,
+                    y: drawing_constants::GAME_BOARD_ORIGIN_Y },
+                size: drawing::SizeSpec {
+                    x: drawing_constants::HEXAGON_X_SPACING * game_constants::MAX_BOARD_WIDTH as f32 + 0.25 * drawing_constants::HEXAGON_WIDTH,
+                    y: drawing_constants::HEXAGON_Y_SPACING * game_constants::MAX_BOARD_HEIGHT as f32 + 0.5 * drawing_constants::HEXAGON_HEIGHT}},
+            3.0);
 
         drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: 0.85 }, 50, "Fast and Feudalist".to_string(), drawing::ColorSpec { r: 0xFF, g: 0xD7, b: 0x00 });
 
