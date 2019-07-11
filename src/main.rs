@@ -72,7 +72,7 @@ struct GameBoardSpacePos {
 
 impl GameBoardSpacePos {
     // Return the position of the space which is above this space.
-    fn _up(&self) -> GameBoardSpacePos {
+    fn up(&self) -> GameBoardSpacePos {
         GameBoardSpacePos {
             x_pos: self.x_pos,
             y_pos: self.y_pos + 1
@@ -80,7 +80,7 @@ impl GameBoardSpacePos {
     }
 
     // Return the position of the space which is up and to the right of this space.
-    fn _up_right(&self) -> GameBoardSpacePos {
+    fn up_right(&self) -> GameBoardSpacePos {
         GameBoardSpacePos {
             x_pos: self.x_pos + 1,
             y_pos: if self.x_pos % 2 == 1 {self.y_pos + 1} else {self.y_pos}
@@ -88,7 +88,7 @@ impl GameBoardSpacePos {
     }
 
     // Return the position of the space which is down and to the right of this space.
-    fn _down_right(&self) -> GameBoardSpacePos {
+    fn down_right(&self) -> GameBoardSpacePos {
         GameBoardSpacePos {
             x_pos: self.x_pos + 1,
             y_pos: if self.x_pos % 2 == 1 {self.y_pos} else {self.y_pos - 1}
@@ -129,7 +129,7 @@ struct MousePos {
 mod drawing_constants {
     use game_constants;
 
-    pub const HEXAGON_WIDTH: f32 = 0.25;
+    pub const HEXAGON_WIDTH: f32 = 0.2;
 
     // Because of the way the hexagons are staggered, the x spacing of columns is 3/4 of a hexagon width.
     pub const HEXAGON_X_SPACING: f32 = HEXAGON_WIDTH * 0.75;
@@ -187,7 +187,7 @@ fn mouse_pos_to_game_board_pos(mouse_position: MousePos, drawable_size: (u32, u3
             // Mouse pos is in a triangle. Determine if it was to the left or right of the diagonal line.
             if (rounded_x % 6 == 0 && rounded_y % 2 == 1) || (rounded_x % 6 == 3 && rounded_y % 2 == 0) {
                 // positive slope
-                if scaled_y - scaled_y.floor() < (scaled_x - scaled_x.floor()) {
+                if scaled_y - scaled_y.floor() < scaled_x - scaled_x.floor() {
                     // right
                     0
                 }
@@ -218,6 +218,131 @@ fn mouse_pos_to_game_board_pos(mouse_position: MousePos, drawable_size: (u32, u3
     }
 
     Some(GameBoardSpacePos { x_pos: x_pos_game as u8, y_pos: y_pos_game as u8})
+}
+
+
+fn mouse_pos_to_board_piece_destination(mouse_position: MousePos, drawable_size: (u32, u32)) -> Option<(GameBoardSpacePos, GameBoardSpacePos, GameBoardSpacePos)> {
+    let drawing_pos = mouse_pos_to_drawing_pos(mouse_position, drawable_size);
+
+    // Adjust the origin so it is at the center of the bottom-left-most hexagon
+    let adjusted_game_board_origin_x = drawing_constants::GAME_BOARD_ORIGIN_X + drawing_constants::HEXAGON_WIDTH / 2.0;
+    let adjusted_game_board_origin_y = drawing_constants::GAME_BOARD_ORIGIN_Y + drawing_constants::HEXAGON_HEIGHT / 2.0;
+
+    let from_game_board_origin_x = drawing_pos.x - adjusted_game_board_origin_x;
+    let from_game_board_origin_y = drawing_pos.y - adjusted_game_board_origin_y;
+
+    // Cut the board vertically along the centers of the hexagon columns (3/4 width)
+    // Cut the board horizontally along the centers of all hexagons (1/2 height)
+    let scaled_x = from_game_board_origin_x / drawing_constants::HEXAGON_WIDTH * 4.0 / 3.0;
+    let scaled_y = from_game_board_origin_y / drawing_constants::HEXAGON_HEIGHT * 2.0;
+
+    let rounded_x = scaled_x.floor() as i32;
+    let rounded_y = scaled_y.floor() as i32;
+
+    // Imagine that there are lines drawn over the board connecting the centers of adjacent hexagons
+    // These lines will form equalateral triangles, with one of the line segments of each triangle being parallel to the Y axis (i.e. vertical, along a fixed x-value).
+    // This function returns the positions of the three game board spaces that all share the same space as the triangle that the mouse is positioned over.
+    // Each triangle is cut in half horizontally, but the vertical grid lines do not cut into the triangles, they form the vertical lines.
+    // Each triangle will have one vertical line segment along an integer value of x, and a point along another integer value of x.
+    // The area of each rectangular space of the grid will contain exactly one diagonal triangle line segment.
+    // Determine whether the point clicked was in a rectangular piece with a positively or negatively sloped the diagonal line.
+    // Then, determine whether this point is above or below that line.
+    // The line goes from either
+    //  (floor(x), floor(y))     to (floor(x) + 1, floor(y) + 1) == positive slope
+    //  or from
+    //  (floor(x), floor(y) + 1) to (floor(x) + 1, floor(y))     == negative slope
+    // x and y have already been scaled so that +1.0 y is half of the distance of one of the vertical triangle line segments,
+    // and +1.0 x is the distance from a vertex to the midpoint on the opposite side.
+
+    //      0     1     2     3     4
+    //      |     |     |     |     |
+    //
+    // 4--  X     |     X     |     X  --4
+    //      |  \  |  /  |  \  |  /  |
+    // 3--  |     X     |     X     |  --3
+    //      |  /  |  \  |  /  |  \  |
+    // 2--  X     |     X     |     X  --2
+    //      |  \  |  /  |  \  |  /  |
+    // 1--  |     X     |     X     |  --1
+    //      |  /     \  |  /     \  |
+    // 0--  X           X           X  --0
+    //
+    //      |     |     |     |     |
+    //      0     1     2     3     4
+
+    // Describe the x position of a triangle using the column it falls in.
+    // Moving one x position value to the right moves to a triangle in the next column.
+    let x_pos_triangle = rounded_x;
+
+    // Describe the y position of a triangle using the order that it sits in the vertical stack of staggered triangles.
+    // The bottom-most point of two vertically adjacent triangles are separated by one y value,
+    // even though each triangle is 2.0 y units tall.
+    // It is trickier to determine the y order of the triangle, because the top and bottom of each triangle are diagonal lines.
+
+    let y_pos_triangle = rounded_y +
+        if rounded_y % 2 == rounded_x % 2 {
+            // in a grid area that contains a positive slope triangle edge
+            if scaled_y - scaled_y.floor() < scaled_x - scaled_x.floor() {
+                // point is below the edge
+                -1
+            } else {
+                // point is above the edge
+                0
+            }
+        } else {
+            // in a grid area that contains a negative slope triangle edge
+            if scaled_y - (scaled_y + 1.0).floor() < (scaled_x - scaled_x.floor()) * -1.0 {
+                // point is below the edge
+                -1
+            } else {
+                // point is above the edge
+                0
+            }
+        };
+
+    // Divide y_pos_triangle by two to get the hexagaon y_pos, since a hexagon height is 2 y-values
+
+    if x_pos_triangle < 0 || y_pos_triangle < 0 || x_pos_triangle >= game_constants::MAX_BOARD_WIDTH as i32 - 1 || y_pos_triangle >= (game_constants::MAX_BOARD_HEIGHT as i32 - 1) * 2 {
+        None
+    } else if x_pos_triangle % 2 == y_pos_triangle % 2 {
+
+        // two pieces on the left, one on the right
+
+        let lower_left_pos = GameBoardSpacePos {
+            x_pos: x_pos_triangle as u8,
+            y_pos: (y_pos_triangle / 2) as u8
+        };
+        let upper_left_pos = lower_left_pos.up();
+        let right_pos = lower_left_pos.up_right();
+
+        Some((
+            lower_left_pos,
+            upper_left_pos,
+            right_pos
+        ))
+    } else {
+
+        // two pieces on the right, one on the left
+        // add one to the y pos for even numbered columns, because they are shifted lower.
+
+        let left_pos = GameBoardSpacePos {
+            x_pos: x_pos_triangle as u8,
+            y_pos: (y_pos_triangle / 2) as u8 +
+                if x_pos_triangle % 2 == 0 {
+                    1
+                } else {
+                    0
+                }
+        };
+        let lower_right_pos = left_pos.down_right();
+        let upper_right_pos = left_pos.up_right();
+
+        Some((
+            left_pos,
+            lower_right_pos,
+            upper_right_pos
+        ))
+    }
 }
 
 
@@ -302,16 +427,35 @@ fn draw_game_board_space(gl: &gl::Gl, shader_program: &render_gl::Program, space
 }
 
 
-fn draw_outline(gl: &gl::Gl, shader_program: &render_gl::Program, position: GameBoardSpacePos) {
-    drawing::draw_hexagon_outline(
-        &gl,
-        &shader_program,
-        drawing::HexagonSpec {
-            color: drawing::ColorSpec { r: 0xFF, g: 0xFF, b: 0xFF },
-            pos: game_board_pos_to_drawing_pos(position),
-            width: drawing_constants::HEXAGON_WIDTH },
-        3.0);
+fn highlight_space(gl: &gl::Gl, shader_program: &render_gl::Program, space_type: GameBoardSpaceType, position: GameBoardSpacePos) {
+    match space_type {
+        GameBoardSpaceType::Void => {
+            drawing::draw_hexagon(&gl, &shader_program, drawing::HexagonSpec {
+                color: drawing::ColorSpec { r: 0xFF, g: 0xFF, b: 0xFF },
+                pos: game_board_pos_to_drawing_pos(position),
+                width: drawing_constants::HEXAGON_WIDTH } );
+            drawing::draw_hexagon_outline(
+                &gl,
+                &shader_program,
+                drawing::HexagonSpec {
+                    color: drawing::ColorSpec { r: 0x00, g: 0x00, b: 0x00 },
+                    pos: game_board_pos_to_drawing_pos(position),
+                    width: drawing_constants::HEXAGON_WIDTH },
+                3.0);
+        },
+        _ => {
+            drawing::draw_hexagon_outline(
+                &gl,
+                &shader_program,
+                drawing::HexagonSpec {
+                    color: drawing::ColorSpec { r: 0xFF, g: 0x00, b: 0x00 },
+                    pos: game_board_pos_to_drawing_pos(position),
+                    width: drawing_constants::HEXAGON_WIDTH },
+                3.0);
+        }
+    }
 }
+
 
 // a, b, c spaces are in clockwise order
 pub struct BoardPiece {
@@ -369,15 +513,15 @@ mod game_constants {
         BoardPiece { a: GameBoardSpaceType::Field, b: GameBoardSpaceType::Forest, c: GameBoardSpaceType::Water },
     ];
 
-    pub const MAX_BOARD_HEIGHT: usize = 6;
-    pub const MAX_BOARD_WIDTH: usize = 9;
+    pub const MAX_BOARD_HEIGHT: usize = 7;
+    pub const MAX_BOARD_WIDTH: usize = 13;
 }
 
 
 // UI data, for now, will be constructed in the main function, and passed by reference where needed.
 struct GameUIData {
     board_state: [[GameBoardSpaceType; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT],
-    pos_under_mouse: Option<GameBoardSpacePos>
+    pos_under_mouse: Option<(GameBoardSpacePos, GameBoardSpacePos, GameBoardSpacePos)>
 }
 
 impl GameUIData {
@@ -515,7 +659,7 @@ fn main() {
     // Fonts
     let freetype_lib = freetype::Library::init().unwrap();
     let cardinal_font_face = freetype_lib.new_face(Path::new("assets/fonts/Cardinal.ttf"), 0).unwrap();
-    let mut text_cache = drawing::TextCache::new();
+    let text_cache = drawing::TextCache::new();
 
     // Obtains the SDL event pump.
     // At most one EventPump is allowed to be alive during the program's execution. If this function is called while an EventPump instance is alive, the function will return an error.
@@ -596,7 +740,7 @@ fn main() {
         }
 
         if mouse_moved {
-            game_ui_data.pos_under_mouse = mouse_pos_to_game_board_pos(current_mouse_pos, (window_width, window_height));
+            game_ui_data.pos_under_mouse = mouse_pos_to_board_piece_destination(current_mouse_pos, (window_width, window_height));
         }
 
         // Clear the color buffer.
@@ -611,7 +755,17 @@ fn main() {
             }
         }
         match game_ui_data.pos_under_mouse {
-            Some(pos_under_mouse) => { draw_outline(&gl, &shader_program, pos_under_mouse); }
+            Some((pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c)) => {
+                let x_a = pos_under_mouse_a.x_pos as usize;
+                let y_a = pos_under_mouse_a.y_pos as usize;
+                let x_b = pos_under_mouse_b.x_pos as usize;
+                let y_b = pos_under_mouse_b.y_pos as usize;
+                let x_c = pos_under_mouse_c.x_pos as usize;
+                let y_c = pos_under_mouse_c.y_pos as usize;
+                highlight_space(&gl, &shader_program, board_state[y_a][x_a], pos_under_mouse_a);
+                highlight_space(&gl, &shader_program, board_state[y_b][x_b], pos_under_mouse_b);
+                highlight_space(&gl, &shader_program, board_state[y_c][x_c], pos_under_mouse_c);
+            }
             None => {}
         }
         drawing::draw_point(&gl, &shader_program);
