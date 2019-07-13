@@ -709,6 +709,22 @@ fn main() {
                     current_mouse_pos = MousePos { x_pos: x_mouse, y_pos: y_mouse };
                     mouse_moved = true;
                 }
+                // SDL_KeyboardEvent
+                sdl2::event::Event::KeyDown {timestamp: _, window_id: _, keycode: _, scancode, keymod: _, repeat: _} => {
+                    // This is tricky, but effective.
+                    // The variable name 'scancode' is reused to mean something different at different scopes
+                    // Here, scancode is an Option type
+                    match scancode {
+                        Some(scancode) => {
+                            // Here, scancode is a sdl2::keyboard::Scancode type
+                            match scancode {
+                                sdl2::keyboard::Scancode::Escape => { break 'main }
+                                _ => {}
+                            }
+                        }
+                        None => {}
+                    }
+                }
                 _ => {}
             }
         }
