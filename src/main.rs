@@ -41,6 +41,11 @@ use rand::Rng;
 use resources::Resources;
 use std::path::Path;
 
+// This is like defining an interface.  We'll have enums implement this trait if there are colors associated with the enum value.
+trait Color {
+    fn color(&self) -> drawing::ColorSpec;
+}
+
 #[derive(Copy,Clone,PartialEq)]
 enum GameBoardSpaceType
 {
@@ -50,6 +55,44 @@ enum GameBoardSpaceType
     Forest,
     Plains,
     Field
+}
+
+impl Color for GameBoardSpaceType
+{
+    fn color(&self) -> drawing::ColorSpec {
+        match self {
+            GameBoardSpaceType::Void => drawing::ColorSpec {
+                r: 0x00,
+                g: 0x00,
+                b: 0x00
+            },
+            GameBoardSpaceType::Water => drawing::ColorSpec {
+                r: 0x00,
+                g: 0x00,
+                b: 0x80
+            },
+            GameBoardSpaceType::Mountain => drawing::ColorSpec {
+                r: 0x80,
+                g: 0x80,
+                b: 0x80
+            },
+            GameBoardSpaceType::Forest => drawing::ColorSpec {
+                r: 0x11,
+                g: 0x46,
+                b: 0x11,
+            },
+            GameBoardSpaceType::Plains => drawing::ColorSpec {
+                r: 0x00,
+                g: 0xFF,
+                b: 0x7F
+            },
+            GameBoardSpaceType::Field => drawing::ColorSpec {
+                r: 0xFF,
+                g: 0xD7,
+                b: 0x00
+            }
+        }
+    }
 }
 
 
@@ -164,7 +207,7 @@ fn mouse_pos_to_drawing_pos(mouse_position: MousePos, drawable_size: (u32, u32))
 }
 
 
-fn _mouse_pos_to_game_board_pos(mouse_position: MousePos, drawable_size: (u32, u32)) -> Option<GameBoardSpacePos> {
+fn mouse_pos_to_game_board_pos(mouse_position: MousePos, drawable_size: (u32, u32)) -> Option<GameBoardSpacePos> {
     let drawing_pos = mouse_pos_to_drawing_pos(mouse_position, drawable_size);
 
     let from_game_board_origin_x = drawing_pos.x - drawing_constants::GAME_BOARD_ORIGIN_X;
@@ -370,48 +413,12 @@ fn game_board_pos_to_drawing_pos(position: GameBoardSpacePos) -> drawing::Positi
 }
 
 
-fn color_for_game_board_space_type(space_type: GameBoardSpaceType) -> drawing::ColorSpec {
-    match space_type {
-        GameBoardSpaceType::Void => drawing::ColorSpec {
-            r: 0x00,
-            g: 0x00,
-            b: 0x00
-        },
-        GameBoardSpaceType::Water => drawing::ColorSpec {
-            r: 0x00,
-            g: 0x00,
-            b: 0x80
-        },
-        GameBoardSpaceType::Mountain => drawing::ColorSpec {
-            r: 0x80,
-            g: 0x80,
-            b: 0x80
-        },
-        GameBoardSpaceType::Forest => drawing::ColorSpec {
-            r: 0x11,
-            g: 0x46,
-            b: 0x11,
-        },
-        GameBoardSpaceType::Plains => drawing::ColorSpec {
-            r: 0x00,
-            g: 0xFF,
-            b: 0x7F
-        },
-        GameBoardSpaceType::Field => drawing::ColorSpec {
-            r: 0xFF,
-            g: 0xD7,
-            b: 0x00
-        }
-    }
-}
-
-
 fn draw_game_board_space(gl: &gl::Gl, shader_program: &render_gl::Program, space_type: GameBoardSpaceType, position: GameBoardSpacePos) {
     match space_type {
         GameBoardSpaceType::Void => {},
         _ => {
             drawing::draw_hexagon(&gl, &shader_program, drawing::HexagonSpec {
-            color: color_for_game_board_space_type(space_type),
+            color: space_type.color(),
             pos: game_board_pos_to_drawing_pos(position),
             width: drawing_constants::HEXAGON_WIDTH } );
         }
@@ -419,7 +426,7 @@ fn draw_game_board_space(gl: &gl::Gl, shader_program: &render_gl::Program, space
 }
 
 
-fn highlight_space(gl: &gl::Gl, shader_program: &render_gl::Program, space_type: GameBoardSpaceType, position: GameBoardSpacePos) {
+fn highlight_space_for_board_setup(gl: &gl::Gl, shader_program: &render_gl::Program, space_type: GameBoardSpaceType, position: GameBoardSpacePos) {
     match space_type {
         GameBoardSpaceType::Void => {
             drawing::draw_hexagon(&gl, &shader_program, drawing::HexagonSpec {
@@ -511,22 +518,139 @@ mod game_constants {
 }
 
 
+enum GameStage
+{
+    SetupBoard,
+    SetupCities,
+    Play,
+    End
+}
+
+
 // UI data, for now, will be constructed in the main function, and passed by reference where needed.
 struct GameUIData {
     board_state: [[GameBoardSpaceType; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT],
-    pos_under_mouse: Option<(GameBoardSpacePos, GameBoardSpacePos, GameBoardSpacePos)>,
-    unplaced_board_pieces: std::vec::Vec<BoardPiece>
+    unplaced_board_pieces: std::vec::Vec<BoardPiece>,
+    game_stage: GameStage,
+    pos_under_mouse_for_board_setup: Option<(GameBoardSpacePos, GameBoardSpacePos, GameBoardSpacePos)>,
+    pos_under_mouse_for_city_setup: Option<GameBoardSpacePos>
 }
 
 impl GameUIData {
     fn defaults() -> GameUIData {
         GameUIData {
             board_state: [[GameBoardSpaceType::Void; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT],
-            pos_under_mouse: None,
-            unplaced_board_pieces: game_constants::BOARD_PIECES.to_vec()
+            unplaced_board_pieces: game_constants::BOARD_PIECES.to_vec(),
+            game_stage: GameStage::SetupBoard,
+            pos_under_mouse_for_board_setup: None,
+            pos_under_mouse_for_city_setup: None
         }
     }
 }
+
+
+fn drop_board_piece(game_ui_data: &mut GameUIData, drawable_size: (u32, u32), last_mouse_click_pos: MousePos) {
+    let result = mouse_pos_to_board_piece_destination(last_mouse_click_pos, drawable_size);
+    match result {
+        Some((pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c)) => {
+            let board_state = &mut game_ui_data.board_state;
+
+            let x_a = pos_under_mouse_a.x_pos as usize;
+            let y_a = pos_under_mouse_a.y_pos as usize;
+            let x_b = pos_under_mouse_b.x_pos as usize;
+            let y_b = pos_under_mouse_b.y_pos as usize;
+            let x_c = pos_under_mouse_c.x_pos as usize;
+            let y_c = pos_under_mouse_c.y_pos as usize;
+
+            if
+                board_state[y_a][x_a] == GameBoardSpaceType::Void &&
+                board_state[y_b][x_b] == GameBoardSpaceType::Void &&
+                board_state[y_c][x_c] == GameBoardSpaceType::Void
+            {
+                // pick a card, any card.
+                let old_len = game_ui_data.unplaced_board_pieces.len();
+                let new_game_piece = game_ui_data.unplaced_board_pieces.remove(rand::thread_rng().gen_range(0, old_len));
+
+                // randomize the orientation
+                let (new_a, new_b, new_c) =
+                    match rand::thread_rng().gen_range(0, 3) {
+                        0 => (new_game_piece.a, new_game_piece.b, new_game_piece.c),
+                        1 => (new_game_piece.b, new_game_piece.c, new_game_piece.a),
+                        _ => (new_game_piece.c, new_game_piece.a, new_game_piece.b)
+                    };
+                board_state[y_a][x_a] = new_a;
+                board_state[y_b][x_b] = new_b;
+                board_state[y_c][x_c] = new_c;
+            }
+
+            const PIECES_PER_PLAYER: usize = 9;
+            let num_players = 1;
+
+            if game_ui_data.unplaced_board_pieces.len() <= game_constants::BOARD_PIECES.len() - PIECES_PER_PLAYER * num_players {
+                game_ui_data.game_stage = GameStage::SetupCities;
+            }
+        }
+        None => {}
+    }
+}
+
+
+fn draw_game_board(gl: &gl::Gl, shader_program: &render_gl::Program, game_ui_data: &GameUIData) {
+    for x in 0..game_constants::MAX_BOARD_WIDTH {
+        for y in 0..game_constants::MAX_BOARD_HEIGHT {
+            draw_game_board_space(&gl, &shader_program, game_ui_data.board_state[y][x], GameBoardSpacePos {x_pos: x as u8, y_pos: y as u8});
+        }
+    }
+}
+
+
+fn highlight_spaces_for_board_setup(gl: &gl::Gl, shader_program: &render_gl::Program, game_ui_data: &GameUIData) {
+    match game_ui_data.pos_under_mouse_for_board_setup {
+        Some((pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c)) => {
+            let board_state = &game_ui_data.board_state;
+
+            let x_a = pos_under_mouse_a.x_pos as usize;
+            let y_a = pos_under_mouse_a.y_pos as usize;
+            let x_b = pos_under_mouse_b.x_pos as usize;
+            let y_b = pos_under_mouse_b.y_pos as usize;
+            let x_c = pos_under_mouse_c.x_pos as usize;
+            let y_c = pos_under_mouse_c.y_pos as usize;
+            highlight_space_for_board_setup(&gl, &shader_program, board_state[y_a][x_a], pos_under_mouse_a);
+            highlight_space_for_board_setup(&gl, &shader_program, board_state[y_b][x_b], pos_under_mouse_b);
+            highlight_space_for_board_setup(&gl, &shader_program, board_state[y_c][x_c], pos_under_mouse_c);
+        }
+        None => {}
+    }
+}
+
+
+fn highlight_space_for_city_setup(gl: &gl::Gl, shader_program: &render_gl::Program, game_ui_data: &GameUIData) {
+    match game_ui_data.pos_under_mouse_for_city_setup {
+        Some(pos_under_mouse) => {
+            let board_state = &game_ui_data.board_state;
+
+            let x = pos_under_mouse.x_pos as usize;
+            let y = pos_under_mouse.y_pos as usize;
+
+            match board_state[y][x] {
+                GameBoardSpaceType::Void => {},
+                _ => {
+                    drawing::draw_hexagon_outline(
+                        &gl,
+                        &shader_program,
+                        drawing::HexagonSpec {
+                            color: drawing::ColorSpec { r: 0xFF, g: 0xFF, b: 0xFF },
+                            pos: game_board_pos_to_drawing_pos(pos_under_mouse),
+                            width: drawing_constants::HEXAGON_WIDTH },
+                        3.0);
+                }
+            }
+
+        }
+        None => {}
+    }
+}
+
 
 
 //
@@ -736,46 +860,24 @@ fn main() {
         // No more events to handle
 
         if mouse_clicked {
-            let result = mouse_pos_to_board_piece_destination(last_mouse_click_pos, (window_width, window_height));
-            match result {
-                Some((pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c)) => {
-                    let board_state = &mut game_ui_data.board_state;
-
-                    let x_a = pos_under_mouse_a.x_pos as usize;
-                    let y_a = pos_under_mouse_a.y_pos as usize;
-                    let x_b = pos_under_mouse_b.x_pos as usize;
-                    let y_b = pos_under_mouse_b.y_pos as usize;
-                    let x_c = pos_under_mouse_c.x_pos as usize;
-                    let y_c = pos_under_mouse_c.y_pos as usize;
-
-                    if
-                        board_state[y_a][x_a] == GameBoardSpaceType::Void &&
-                        board_state[y_b][x_b] == GameBoardSpaceType::Void &&
-                        board_state[y_c][x_c] == GameBoardSpaceType::Void
-                    {
-                        // pick a card, any card.
-                        let old_len = game_ui_data.unplaced_board_pieces.len();
-                        let new_game_piece = game_ui_data.unplaced_board_pieces.remove(rand::thread_rng().gen_range(0, old_len));
-
-                        // randomize the orientation
-                        let (new_a, new_b, new_c) =
-                            match rand::thread_rng().gen_range(0, 3) {
-                                0 => (new_game_piece.a, new_game_piece.b, new_game_piece.c),
-                                1 => (new_game_piece.b, new_game_piece.c, new_game_piece.a),
-                                _ => (new_game_piece.c, new_game_piece.a, new_game_piece.b)
-                            };
-                        board_state[y_a][x_a] = new_a;
-                        board_state[y_b][x_b] = new_b;
-                        board_state[y_c][x_c] = new_c;
-                    }
-
+            match game_ui_data.game_stage {
+                GameStage::SetupBoard => {
+                    drop_board_piece(&mut game_ui_data, (window_width, window_height), last_mouse_click_pos);
                 }
-                None => {}
+                _ => {}
             }
         }
 
         if mouse_moved {
-            game_ui_data.pos_under_mouse = mouse_pos_to_board_piece_destination(current_mouse_pos, (window_width, window_height));
+            match game_ui_data.game_stage {
+                GameStage::SetupBoard => {
+                    game_ui_data.pos_under_mouse_for_board_setup = mouse_pos_to_board_piece_destination(current_mouse_pos, (window_width, window_height));
+                }
+                GameStage::SetupCities => {
+                    game_ui_data.pos_under_mouse_for_city_setup = mouse_pos_to_game_board_pos(current_mouse_pos, (window_width, window_height));
+                }
+                _ => {}
+            }
         }
 
         if key_pressed {
@@ -785,6 +887,7 @@ fn main() {
                     // Reset board
                     game_ui_data.board_state = [[GameBoardSpaceType::Void; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT];
                     game_ui_data.unplaced_board_pieces = game_constants::BOARD_PIECES.to_vec();
+                    game_ui_data.game_stage = GameStage::SetupBoard;
                 }
                 _ => {}
             }
@@ -796,27 +899,19 @@ fn main() {
         }
 
         // Draw
-        for x in 0..game_constants::MAX_BOARD_WIDTH {
-            for y in 0..game_constants::MAX_BOARD_HEIGHT {
-                draw_game_board_space(&gl, &shader_program, game_ui_data.board_state[y][x], GameBoardSpacePos {x_pos: x as u8, y_pos: y as u8});
-            }
-        }
-        match game_ui_data.pos_under_mouse {
-            Some((pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c)) => {
-                let board_state = &game_ui_data.board_state;
+        draw_game_board(&gl, &shader_program, &game_ui_data);
 
-                let x_a = pos_under_mouse_a.x_pos as usize;
-                let y_a = pos_under_mouse_a.y_pos as usize;
-                let x_b = pos_under_mouse_b.x_pos as usize;
-                let y_b = pos_under_mouse_b.y_pos as usize;
-                let x_c = pos_under_mouse_c.x_pos as usize;
-                let y_c = pos_under_mouse_c.y_pos as usize;
-                highlight_space(&gl, &shader_program, board_state[y_a][x_a], pos_under_mouse_a);
-                highlight_space(&gl, &shader_program, board_state[y_b][x_b], pos_under_mouse_b);
-                highlight_space(&gl, &shader_program, board_state[y_c][x_c], pos_under_mouse_c);
+        match game_ui_data.game_stage {
+            GameStage::SetupBoard => {
+                highlight_spaces_for_board_setup(&gl, &shader_program, &game_ui_data);
             }
-            None => {}
+            GameStage::SetupCities => {
+                highlight_space_for_city_setup(&gl, &shader_program, &game_ui_data);
+            }
+            _ => {}
         }
+
+        // Draw rectangular border around the game board area.
         drawing::draw_rectangle_outline(
             &gl,
             &shader_program,
@@ -840,11 +935,11 @@ fn main() {
         drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: 0.54 }, 20, "2 strongholds".to_string(), drawing::ColorSpec { r: 0xFF, g: 0x40, b: 0x40 });
         drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: 0.46 }, 20, "7 knights".to_string(),     drawing::ColorSpec { r: 0xFF, g: 0x40, b: 0x40 });
 
-        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.30 }, 24, "Water".to_string(),        color_for_game_board_space_type(GameBoardSpaceType::Water));
-        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.40 }, 24, "Mountain = 2".to_string(), color_for_game_board_space_type(GameBoardSpaceType::Mountain));
-        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.50 }, 24, "Forest = 3".to_string(),   color_for_game_board_space_type(GameBoardSpaceType::Forest));
-        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.60 }, 24, "Plains = 4".to_string(),   color_for_game_board_space_type(GameBoardSpaceType::Plains));
-        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.70 }, 24, "Field = 5".to_string(),    color_for_game_board_space_type(GameBoardSpaceType::Field));
+        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.30 }, 24, "Water".to_string(),        GameBoardSpaceType::Water.color());
+        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.40 }, 24, "Mountain = 2".to_string(), GameBoardSpaceType::Mountain.color());
+        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.50 }, 24, "Forest = 3".to_string(),   GameBoardSpaceType::Forest.color());
+        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.60 }, 24, "Plains = 4".to_string(),   GameBoardSpaceType::Plains.color());
+        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.70 }, 24, "Field = 5".to_string(),    GameBoardSpaceType::Field.color());
 
         // Swap the window pixels with what we have just rendered
         window.gl_swap_window();
