@@ -674,7 +674,6 @@ fn main() {
     let mut frame_time: u32;
 
     let mut game_ui_data = GameUIData::defaults();
-    let board_state = &mut game_ui_data.board_state;
 
     let mut current_mouse_pos = MousePos { x_pos: 0, y_pos: 0 };
 
@@ -692,6 +691,8 @@ fn main() {
         let mut mouse_clicked = false;
         let mut mouse_moved = false;
         let mut last_mouse_click_pos = MousePos { x_pos: 0, y_pos: 0 };
+        let mut key_pressed = false;
+        let mut last_key_pressed_scancode: Option<sdl2::keyboard::Scancode> = None;
 
         // Catch up on every event in the event_pump
         // See documentation for SDL_Event.
@@ -719,7 +720,10 @@ fn main() {
                             // Here, scancode is a sdl2::keyboard::Scancode type
                             match scancode {
                                 sdl2::keyboard::Scancode::Escape => { break 'main }
-                                _ => {}
+                                _ => {
+                                    key_pressed = true;
+                                    last_key_pressed_scancode = Some(scancode);
+                                }
                             }
                         }
                         None => {}
@@ -735,6 +739,8 @@ fn main() {
             let result = mouse_pos_to_board_piece_destination(last_mouse_click_pos, (window_width, window_height));
             match result {
                 Some((pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c)) => {
+                    let board_state = &mut game_ui_data.board_state;
+
                     let x_a = pos_under_mouse_a.x_pos as usize;
                     let y_a = pos_under_mouse_a.y_pos as usize;
                     let x_b = pos_under_mouse_b.x_pos as usize;
@@ -772,6 +778,18 @@ fn main() {
             game_ui_data.pos_under_mouse = mouse_pos_to_board_piece_destination(current_mouse_pos, (window_width, window_height));
         }
 
+        if key_pressed {
+            use sdl2::keyboard::Scancode::*;
+            match last_key_pressed_scancode.unwrap() {
+                F2 => {
+                    // Reset board
+                    game_ui_data.board_state = [[GameBoardSpaceType::Void; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT];
+                    game_ui_data.unplaced_board_pieces = game_constants::BOARD_PIECES.to_vec();
+                }
+                _ => {}
+            }
+        }
+
         // Clear the color buffer.
         unsafe {
             gl.Clear(gl::COLOR_BUFFER_BIT);
@@ -780,11 +798,13 @@ fn main() {
         // Draw
         for x in 0..game_constants::MAX_BOARD_WIDTH {
             for y in 0..game_constants::MAX_BOARD_HEIGHT {
-                draw_game_board_space(&gl, &shader_program, board_state[y][x], GameBoardSpacePos {x_pos: x as u8, y_pos: y as u8});
+                draw_game_board_space(&gl, &shader_program, game_ui_data.board_state[y][x], GameBoardSpacePos {x_pos: x as u8, y_pos: y as u8});
             }
         }
         match game_ui_data.pos_under_mouse {
             Some((pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c)) => {
+                let board_state = &game_ui_data.board_state;
+
                 let x_a = pos_under_mouse_a.x_pos as usize;
                 let y_a = pos_under_mouse_a.y_pos as usize;
                 let x_b = pos_under_mouse_b.x_pos as usize;
