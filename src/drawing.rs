@@ -1,3 +1,4 @@
+
 use render_gl;
 use freetype;
 
@@ -133,7 +134,7 @@ pub fn draw_point(gl: &gl::Gl, shader_program: &render_gl::Program) {
     }
 }
 
-
+#[derive(Clone)]
 pub struct ColorSpec {
     pub r: u8,
     pub g: u8,
@@ -398,13 +399,13 @@ impl TextCache {
 }
 
 
-pub struct TextDrawingBaggage {
+pub struct TextDrawingBaggage<'a> {
     pub gl: gl::Gl,
-    pub shader_program: render_gl::Program,
+    pub shader_program: &'a render_gl::Program,
     pub drawable_size: (u32, u32),
     pub display_dpi: (f32, f32, f32),
-    pub font_face: freetype::face::Face,
-    pub text_cache: TextCache
+    pub font_face: &'a freetype::face::Face,
+    pub text_cache: &'a mut TextCache
 }
 
 
@@ -542,6 +543,101 @@ pub fn draw_text(
         current_y = current_y + (character_texture.advance.y >> 6) as f32 * scaling_y;
     }
     unsafe {
+        gl.DeleteVertexArrays(1, &mut vao);
+        gl.DeleteBuffers(1, &mut vbo);
+    }
+}
+
+
+pub fn draw_image(gl: &gl::Gl, shader_program: &render_gl::Program, image: &nsvg::image::RgbaImage, position: PositionSpec, size: SizeSpec) {
+    shader_program.set_used();
+    let r_color = 0xFF as f32 / 255.0;
+    let g_color = 0xFF as f32 / 255.0;
+    let b_color = 0xFF as f32 / 255.0;
+
+    unsafe {
+        let color_loc = gl.GetUniformLocation(shader_program.id(), std::ffi::CString::new("textColor").unwrap().as_ptr());
+        gl.ProgramUniform3f(shader_program.id(), color_loc, r_color, g_color, b_color);
+
+        let text_loc = gl.GetUniformLocation(shader_program.id(), std::ffi::CString::new("text").unwrap().as_ptr());
+        gl.ProgramUniform1i(shader_program.id(), text_loc, 0);
+
+        gl.PixelStorei(gl::UNPACK_ALIGNMENT, 1);
+    }
+
+    let mut vbo: gl::types::GLuint = 0;
+    unsafe {
+        gl.GenBuffers(1, &mut vbo);
+        gl.BindBuffer(gl::ARRAY_BUFFER, vbo);
+    }
+
+    let mut vao: gl::types::GLuint = 0;
+    unsafe {
+        gl.GenVertexArrays(1, &mut vao);
+        gl.BindVertexArray(vao);
+        gl.VertexAttribPointer(
+            0,
+            4,
+            gl::FLOAT,
+            gl::FALSE,
+            (4 * std::mem::size_of::<f32>()) as gl::types::GLint,
+            std::ptr::null()
+        );
+        gl.EnableVertexAttribArray(0);
+    }
+
+    let mut texture_id: gl::types::GLuint = 0;
+    unsafe {
+        gl.ActiveTexture(gl::TEXTURE0);
+        gl.GenTextures(1, &mut texture_id);
+        gl.BindTexture(gl::TEXTURE_2D, texture_id);
+        gl.TexImage2D(
+            gl::TEXTURE_2D,
+            0,
+            gl::RGBA as i32,
+            image.width() as i32,
+            image.height() as i32,
+            0,
+            gl::RGBA,
+            gl::UNSIGNED_BYTE,
+            image.clone().into_raw().as_ptr() as *const std::os::raw::c_void
+        );
+        gl.TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
+        gl.TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+        gl.TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
+        gl.TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
+    }
+
+    // TODO do the scaling in the GPU
+    let x_pos: f32 = position.x;
+    let y_pos: f32 = position.y;
+    let w: f32 = size.x;
+    let h: f32 = size.y;
+
+    let vertices: Vec<f32> = vec![
+        x_pos,     y_pos,     0.0, 1.0,
+        x_pos + w, y_pos,     1.0, 1.0,
+        x_pos,     y_pos + h, 0.0, 0.0,
+        x_pos + w, y_pos + h, 1.0, 0.0
+    ];
+
+    unsafe {
+        gl.BindTexture(gl::TEXTURE_2D, texture_id);
+        gl.BufferData(
+            gl::ARRAY_BUFFER,
+            (vertices.len() * std::mem::size_of::<f32>()) as gl::types::GLsizeiptr,
+            vertices.as_ptr() as *const gl::types::GLvoid,
+            gl::STATIC_DRAW
+        );
+        gl.DrawArrays(
+            gl::TRIANGLE_STRIP, // mode
+            0, // starting index in the enabled arrays
+            4 // number of indices to be rendered
+        );
+    }
+
+    unsafe {
+        gl.DeleteTextures(1, &mut texture_id);
         gl.DeleteVertexArrays(1, &mut vao);
         gl.DeleteBuffers(1, &mut vbo);
     }

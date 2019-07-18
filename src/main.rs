@@ -17,6 +17,7 @@ extern crate sdl2;
 
 extern crate freetype;
 extern crate glm;
+extern crate nsvg;
 extern crate rand;
 
 // Working around what seems like a bug in one of our dependencies (or build toolchain)
@@ -67,14 +68,14 @@ impl Color for GameBoardSpaceType
                 b: 0x00
             },
             GameBoardSpaceType::Water => drawing::ColorSpec {
-                r: 0x00,
-                g: 0x00,
+                r: 0x20,
+                g: 0x20,
                 b: 0x80
             },
             GameBoardSpaceType::Mountain => drawing::ColorSpec {
-                r: 0x80,
-                g: 0x80,
-                b: 0x80
+                r: 0x40,
+                g: 0x40,
+                b: 0x40
             },
             GameBoardSpaceType::Forest => drawing::ColorSpec {
                 r: 0x11,
@@ -83,12 +84,12 @@ impl Color for GameBoardSpaceType
             },
             GameBoardSpaceType::Plains => drawing::ColorSpec {
                 r: 0x00,
-                g: 0xFF,
-                b: 0x7F
+                g: 0x80,
+                b: 0x40
             },
             GameBoardSpaceType::Field => drawing::ColorSpec {
-                r: 0xFF,
-                g: 0xD7,
+                r: 0x80,
+                g: 0x70,
                 b: 0x00
             }
         }
@@ -108,6 +109,43 @@ impl rand::distributions::Distribution<GameBoardSpaceType> for rand::distributio
     }
 }
 
+#[derive(Clone,PartialEq)]
+enum PlayerColor
+{
+    Red,
+    Blue,
+    Green,
+    Yellow
+}
+
+impl Color for PlayerColor {
+    fn color(&self) -> drawing::ColorSpec {
+        match self {
+            PlayerColor::Red => drawing::ColorSpec {
+                r: 0xC0,
+                g: 0x00,
+                b: 0x00
+            },
+            PlayerColor::Blue => drawing::ColorSpec {
+                r: 0x00,
+                g: 0x00,
+                b: 0xFF
+            },
+            PlayerColor::Green => drawing::ColorSpec {
+                r: 0x00,
+                g: 0xD0,
+                b: 0x00
+            },
+            PlayerColor::Yellow => drawing::ColorSpec {
+                r: 0xFF,
+                g: 0xD7,
+                b: 0x00,
+            }
+        }
+    }
+}
+
+
 #[derive(Clone, Copy, PartialEq)]
 struct GameBoardSpacePos {
     x_pos: u8,
@@ -116,50 +154,78 @@ struct GameBoardSpacePos {
 
 impl GameBoardSpacePos {
     // Return the position of the space which is above this space.
-    fn up(&self) -> GameBoardSpacePos {
-        GameBoardSpacePos {
-            x_pos: self.x_pos,
-            y_pos: self.y_pos + 1
+    fn up(&self) -> Option<GameBoardSpacePos> {
+        let next_y = self.y_pos + 1;
+        if next_y < game_constants::MAX_BOARD_HEIGHT as u8 {
+            Some(GameBoardSpacePos {
+                x_pos: self.x_pos,
+                y_pos: next_y})
+        } else {
+            None
         }
     }
 
     // Return the position of the space which is up and to the right of this space.
-    fn up_right(&self) -> GameBoardSpacePos {
-        GameBoardSpacePos {
-            x_pos: self.x_pos + 1,
-            y_pos: if self.x_pos % 2 == 1 {self.y_pos + 1} else {self.y_pos}
+    fn up_right(&self) -> Option<GameBoardSpacePos> {
+        let next_x = self.x_pos + 1;
+        let next_y = if self.x_pos % 2 == 1 {self.y_pos + 1} else {self.y_pos};
+        if next_x < game_constants::MAX_BOARD_WIDTH as u8 && next_y < game_constants::MAX_BOARD_HEIGHT as u8 {
+            Some(GameBoardSpacePos {
+                x_pos: next_x,
+                y_pos: next_y})
+        } else {
+            None
         }
     }
 
     // Return the position of the space which is down and to the right of this space.
-    fn down_right(&self) -> GameBoardSpacePos {
-        GameBoardSpacePos {
-            x_pos: self.x_pos + 1,
-            y_pos: if self.x_pos % 2 == 1 {self.y_pos} else {self.y_pos - 1}
+    fn down_right(&self) -> Option<GameBoardSpacePos> {
+        let next_x = self.x_pos + 1;
+        let next_y = if self.x_pos % 2 == 1 {self.y_pos as i8} else {self.y_pos as i8 - 1};
+        if next_x < game_constants::MAX_BOARD_WIDTH as u8 && next_y >= 0 {
+            Some(GameBoardSpacePos {
+                x_pos: next_x,
+                y_pos: next_y as u8})
+        } else {
+            None
         }
     }
 
     // Return the position of the space which is below this space.
-    fn _down(&self) -> GameBoardSpacePos {
-        GameBoardSpacePos {
-            x_pos: self.x_pos,
-            y_pos: self.y_pos - 1
+    fn down(&self) -> Option<GameBoardSpacePos> {
+        let next_y = self.y_pos as i8 - 1;
+        if next_y >= 0 {
+            Some(GameBoardSpacePos {
+                x_pos: self.x_pos,
+                y_pos: next_y as u8})
+        } else {
+            None
         }
     }
 
     // Return the position of the space which is down and to the left of this space.
-    fn _down_left(&self) -> GameBoardSpacePos {
-        GameBoardSpacePos {
-            x_pos: self.x_pos - 1,
-            y_pos: if self.x_pos % 2 == 1 {self.y_pos} else {self.y_pos - 1}
+    fn down_left(&self) -> Option<GameBoardSpacePos> {
+        let next_x = self.x_pos as i8 - 1;
+        let next_y = if self.x_pos % 2 == 1 {self.y_pos as i8} else {self.y_pos as i8 - 1};
+        if next_x >= 0 && next_y >= 0 {
+            Some(GameBoardSpacePos {
+                x_pos: next_x as u8,
+                y_pos: next_y as u8})
+        } else {
+            None
         }
     }
 
     // Return the position of the space which is up and to the left of this space.
-    fn _up_left(&self) -> GameBoardSpacePos {
-        GameBoardSpacePos {
-            x_pos: self.x_pos - 1,
-            y_pos: if self.x_pos % 2 == 1 {self.y_pos + 1} else {self.y_pos}
+    fn up_left(&self) -> Option<GameBoardSpacePos> {
+        let next_x = self.x_pos as i8 - 1;
+        let next_y = if self.x_pos % 2 == 1 {self.y_pos + 1} else {self.y_pos};
+        if next_x >= 0 && next_y < game_constants::MAX_BOARD_HEIGHT as u8 {
+            Some(GameBoardSpacePos {
+                x_pos: next_x as u8,
+                y_pos: next_y})
+        } else {
+            None
         }
     }
 }
@@ -187,7 +253,7 @@ mod drawing_constants {
 }
 
 
-fn mouse_pos_to_drawing_pos(mouse_position: MousePos, drawable_size: (u32, u32)) -> drawing::PositionSpec {
+fn scaling_for_board(drawable_size: (u32, u32)) -> (f32, f32) {
     let (window_width, window_height) = drawable_size;
     let aspect_ratio = window_width as f32 / window_height as f32;
 
@@ -199,6 +265,14 @@ fn mouse_pos_to_drawing_pos(mouse_position: MousePos, drawable_size: (u32, u32))
     } else {
         y_scale = aspect_ratio;
     }
+
+    (x_scale, y_scale)
+}
+
+
+fn mouse_pos_to_drawing_pos(mouse_position: MousePos, drawable_size: (u32, u32)) -> drawing::PositionSpec {
+    let (window_width, window_height) = drawable_size;
+    let (x_scale, y_scale) = scaling_for_board(drawable_size);
 
     let drawing_x = (mouse_position.x_pos - (window_width as i32/ 2)) as f32 / window_width as f32 * 2.0 / x_scale;
     let drawing_y = ((window_height as i32 / 2) - mouse_position.y_pos) as f32 / window_height as f32 * 2.0 / y_scale;
@@ -356,8 +430,8 @@ fn mouse_pos_to_board_piece_destination(mouse_position: MousePos, drawable_size:
             x_pos: x_pos_triangle as u8,
             y_pos: (y_pos_triangle / 2) as u8
         };
-        let upper_left_pos = lower_left_pos.up();
-        let right_pos = lower_left_pos.up_right();
+        let upper_left_pos = lower_left_pos.up().unwrap();
+        let right_pos = lower_left_pos.up_right().unwrap();
 
         Some((
             lower_left_pos,
@@ -378,8 +452,8 @@ fn mouse_pos_to_board_piece_destination(mouse_position: MousePos, drawable_size:
                     0
                 }
         };
-        let upper_right_pos = left_pos.up_right();
-        let lower_right_pos = left_pos.down_right();
+        let upper_right_pos = left_pos.up_right().unwrap();
+        let lower_right_pos = left_pos.down_right().unwrap();
 
         Some((
             left_pos,
@@ -527,13 +601,20 @@ enum GameStage
 }
 
 
+struct CityInfo {
+    position: GameBoardSpacePos,
+    owner: PlayerColor
+}
+
+
 // UI data, for now, will be constructed in the main function, and passed by reference where needed.
 struct GameUIData {
     board_state: [[GameBoardSpaceType; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT],
     unplaced_board_pieces: std::vec::Vec<BoardPiece>,
     game_stage: GameStage,
     pos_under_mouse_for_board_setup: Option<(GameBoardSpacePos, GameBoardSpacePos, GameBoardSpacePos)>,
-    pos_under_mouse_for_city_setup: Option<GameBoardSpacePos>
+    pos_under_mouse_for_city_setup: Option<GameBoardSpacePos>,
+    cities: std::vec::Vec<CityInfo>
 }
 
 impl GameUIData {
@@ -543,7 +624,8 @@ impl GameUIData {
             unplaced_board_pieces: game_constants::BOARD_PIECES.to_vec(),
             game_stage: GameStage::SetupBoard,
             pos_under_mouse_for_board_setup: None,
-            pos_under_mouse_for_city_setup: None
+            pos_under_mouse_for_city_setup: None,
+            cities: std::vec::Vec::<CityInfo>::new()
         }
     }
 }
@@ -624,28 +706,87 @@ fn highlight_spaces_for_board_setup(gl: &gl::Gl, shader_program: &render_gl::Pro
 }
 
 
-fn highlight_space_for_city_setup(gl: &gl::Gl, shader_program: &render_gl::Program, game_ui_data: &GameUIData) {
+fn space_ok_for_city(game_ui_data: &GameUIData, position: GameBoardSpacePos) -> bool {
+    let board_state = &game_ui_data.board_state;
+
+    let x = position.x_pos as usize;
+    let y = position.y_pos as usize;
+
+    match board_state[y][x] {
+        GameBoardSpaceType::Void | GameBoardSpaceType::Water | GameBoardSpaceType::Forest => {
+            false
+        }
+        _ => {
+            for city in game_ui_data.cities.iter() {
+                if city.position == position {
+                    return false;
+                }
+            }
+            let neighbor_positions = [position.up(), position.down(), position.up_right(), position.up_left(), position.down_right(), position.down_left()];
+            for position in &neighbor_positions {
+                for city in game_ui_data.cities.iter() {
+                    if position.is_some() && city.position == position.unwrap() {
+                        return false;
+                    }
+                }
+            }
+            true
+        }
+    }
+}
+
+
+fn highlight_space_for_city_setup(gl: &gl::Gl, shader_program: &render_gl::Program, image_program: &render_gl::Program, city_image: &nsvg::image::RgbaImage, game_ui_data: &GameUIData, drawable_size: (u32, u32)) {
+        let (x_scale, y_scale) = scaling_for_board(drawable_size);
+
     match game_ui_data.pos_under_mouse_for_city_setup {
         Some(pos_under_mouse) => {
             let board_state = &game_ui_data.board_state;
 
             let x = pos_under_mouse.x_pos as usize;
             let y = pos_under_mouse.y_pos as usize;
-
             match board_state[y][x] {
                 GameBoardSpaceType::Void => {},
                 _ => {
-                    drawing::draw_hexagon_outline(
-                        &gl,
-                        &shader_program,
-                        drawing::HexagonSpec {
-                            color: drawing::ColorSpec { r: 0xFF, g: 0xFF, b: 0xFF },
-                            pos: game_board_pos_to_drawing_pos(pos_under_mouse),
-                            width: drawing_constants::HEXAGON_WIDTH },
-                        3.0);
+                    if space_ok_for_city(game_ui_data, pos_under_mouse) {
+                        let drawing_pos = game_board_pos_to_drawing_pos(pos_under_mouse);
+                        let x_margin = 0.25;
+                        let y_margin = 0.25;
+                        let x_offset = 0.0;
+                        let y_offset = 0.5;
+
+                        drawing::draw_image(
+                            &gl,
+                            &image_program,
+                            &city_image,
+                            drawing::PositionSpec{
+                                x: drawing_pos.x * x_scale - 0.5 * drawing_constants::HEXAGON_WIDTH * x_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (x_margin + x_offset),
+                                y: drawing_pos.y * y_scale - 0.5 * drawing_constants::HEXAGON_HEIGHT * y_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (y_margin + y_offset)},
+                            drawing::SizeSpec{
+                                x: drawing_constants::HEXAGON_WIDTH * x_scale * (1.0 - x_margin * 2.0),
+                                y: drawing_constants::HEXAGON_HEIGHT * y_scale * (1.0 - y_margin * 2.0)});
+
+                        drawing::draw_hexagon_outline(
+                            &gl,
+                            &shader_program,
+                            drawing::HexagonSpec {
+                                color: drawing::ColorSpec { r: 0xFF, g: 0xFF, b: 0xFF },
+                                pos: drawing_pos,
+                                width: drawing_constants::HEXAGON_WIDTH },
+                            3.0);
+                    } else {
+                        let drawing_pos = game_board_pos_to_drawing_pos(pos_under_mouse);
+                        drawing::draw_hexagon_outline(
+                            &gl,
+                            &shader_program,
+                            drawing::HexagonSpec {
+                                color: drawing::ColorSpec { r: 0xFF, g: 0x00, b: 0x00 },
+                                pos: drawing_pos,
+                                width: drawing_constants::HEXAGON_WIDTH },
+                            3.0);
+                    }
                 }
             }
-
         }
         None => {}
     }
@@ -778,7 +919,68 @@ fn main() {
     // Fonts
     let freetype_lib = freetype::Library::init().unwrap();
     let cardinal_font_face = freetype_lib.new_face(Path::new("assets/fonts/Cardinal.ttf"), 0).unwrap();
-    let text_cache = drawing::TextCache::new();
+    let mut text_cache = drawing::TextCache::new();
+
+    let player_color = PlayerColor::Red;
+    //let player_color = PlayerColor::Blue;
+    //let player_color = PlayerColor::Green;
+    //let player_color = PlayerColor::Yellow;
+    let player_color_spec = player_color.color();
+
+    // SVG images
+    let mut city_image = {
+        let svg = nsvg::parse_file(Path::new("assets/svg/city.svg"), nsvg::Units::Pixel, ddpi).unwrap();
+        let svg_scaling = svg.width() * 2.0 / window_width as f32;
+        svg.rasterize(svg_scaling).unwrap()
+    };
+    for pixel in city_image.pixels_mut() {
+        let old_pixel = pixel.clone();
+        pixel.data = [player_color_spec.r, player_color_spec.g, player_color_spec.b, old_pixel.data[3]];
+    }
+
+    let mut village_image = {
+        let svg = nsvg::parse_file(Path::new("assets/svg/village.svg"), nsvg::Units::Pixel, ddpi).unwrap();
+        let svg_scaling = svg.width() * 2.0 / window_width as f32;
+        svg.rasterize(svg_scaling).unwrap()
+    };
+    for pixel in village_image.pixels_mut() {
+        let old_pixel = pixel.clone();
+        pixel.data = [player_color_spec.r, player_color_spec.g, player_color_spec.b, old_pixel.data[3]];
+    }
+
+    let mut stronghold_image = {
+        let svg = nsvg::parse_file(Path::new("assets/svg/stronghold.svg"), nsvg::Units::Pixel, ddpi).unwrap();
+        let svg_scaling = svg.width() * 2.0 / window_width as f32;
+        svg.rasterize(svg_scaling).unwrap()
+    };
+    for pixel in stronghold_image.pixels_mut() {
+        let old_pixel = pixel.clone();
+        pixel.data = [player_color_spec.r, player_color_spec.g, player_color_spec.b, old_pixel.data[3]];
+    }
+
+    let mut knight_image = {
+        let svg = nsvg::parse_file(Path::new("assets/svg/knight.svg"), nsvg::Units::Pixel, ddpi).unwrap();
+        let svg_scaling = svg.width() * 2.0 / window_width as f32;
+        svg.rasterize(svg_scaling).unwrap()
+    };
+    for pixel in knight_image.pixels_mut() {
+        let old_pixel = pixel.clone();
+        pixel.data = [player_color_spec.r, player_color_spec.g, player_color_spec.b, old_pixel.data[3]];
+    }
+
+    let mut scroll_image = {
+        let svg = nsvg::parse_file(Path::new("assets/svg/paper-scroll.svg"), nsvg::Units::Pixel, ddpi).unwrap();
+        let svg_scaling = svg.width() * 2.0 / window_width as f32;
+        svg.rasterize(svg_scaling).unwrap()
+    };
+    for pixel in scroll_image.pixels_mut() {
+        let old_pixel = pixel.clone();
+        pixel.data = [
+            (old_pixel.data[0] as f32 * 0.75) as u8,
+            (old_pixel.data[1] as f32 * 0.75) as u8,
+            (old_pixel.data[2] as f32 * 0.75) as u8,
+            old_pixel.data[3]];
+    }
 
     // Obtains the SDL event pump.
     // At most one EventPump is allowed to be alive during the program's execution. If this function is called while an EventPump instance is alive, the function will return an error.
@@ -789,6 +991,7 @@ fn main() {
     // Compile and link a program with shaders that match this file name
     let shader_program = render_gl::Program::from_res(&gl, &res, "shaders/basic").unwrap();
     let text_program = render_gl::Program::from_res(&gl, &res, "shaders/text").unwrap();
+    let image_program = render_gl::Program::from_res(&gl, &res, "shaders/image").unwrap();
     drawing::write_scale_data(&gl, &shader_program, aspect_ratio);
     drawing::write_rotate_data(&gl, &shader_program, 0.0);
 
@@ -800,16 +1003,6 @@ fn main() {
     let mut game_ui_data = GameUIData::defaults();
 
     let mut current_mouse_pos = MousePos { x_pos: 0, y_pos: 0 };
-
-    let mut text_drawing_baggage = drawing::TextDrawingBaggage {
-        gl: gl.clone(),
-        shader_program: text_program,
-        drawable_size: (window_width, window_height),
-        display_dpi: (ddpi, hdpi, vdpi),
-        font_face: cardinal_font_face,
-        text_cache: text_cache
-    };
-
     // Loop with label 'main (exited by the break 'main statement)
     'main: loop {
         let mut mouse_clicked = false;
@@ -864,6 +1057,27 @@ fn main() {
                 GameStage::SetupBoard => {
                     drop_board_piece(&mut game_ui_data, (window_width, window_height), last_mouse_click_pos);
                 }
+                GameStage::SetupCities => {
+                    match game_ui_data.pos_under_mouse_for_city_setup {
+                        Some(pos_under_mouse) => {
+                            let x = pos_under_mouse.x_pos as usize;
+                            let y = pos_under_mouse.y_pos as usize;
+                            match game_ui_data.board_state[y][x] {
+                                GameBoardSpaceType::Void => {}
+                                _ => {
+                                    if space_ok_for_city(&game_ui_data, pos_under_mouse) {
+                                        game_ui_data.cities.push(CityInfo{ position: pos_under_mouse, owner: player_color.clone() });
+                                        if game_ui_data.cities.len() >= 3 {
+                                            game_ui_data.game_stage = GameStage::Play;
+                                        }
+                                    }
+                                }
+                            }
+
+                        }
+                        None => {}
+                    }
+                }
                 _ => {}
             }
         }
@@ -888,6 +1102,7 @@ fn main() {
                     game_ui_data.board_state = [[GameBoardSpaceType::Void; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT];
                     game_ui_data.unplaced_board_pieces = game_constants::BOARD_PIECES.to_vec();
                     game_ui_data.game_stage = GameStage::SetupBoard;
+                    game_ui_data.cities = std::vec::Vec::<CityInfo>::new();
                 }
                 _ => {}
             }
@@ -906,7 +1121,7 @@ fn main() {
                 highlight_spaces_for_board_setup(&gl, &shader_program, &game_ui_data);
             }
             GameStage::SetupCities => {
-                highlight_space_for_city_setup(&gl, &shader_program, &game_ui_data);
+                highlight_space_for_city_setup(&gl, &shader_program, &image_program, &city_image, &game_ui_data, (window_width, window_height));
             }
             _ => {}
         }
@@ -925,21 +1140,122 @@ fn main() {
                     y: drawing_constants::HEXAGON_Y_SPACING * game_constants::MAX_BOARD_HEIGHT as f32 + 0.5 * drawing_constants::HEXAGON_HEIGHT}},
             3.0);
 
-        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: 0.85 }, 48, "Fast and Feudalist".to_string(), drawing::ColorSpec { r: 0xFF, g: 0xD7, b: 0x00 });
+        // Draw scroll image
+        drawing::draw_image(
+            &gl,
+            &image_program,
+            &scroll_image,
+            drawing::PositionSpec{ x: -0.99, y: 0.28 },
+            drawing::SizeSpec{ x: 0.18, y: 0.45 });
 
-        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "Game Setup".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
-        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.18, y: 0.82 }, 18, "Lay board game pieces to build the map.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+        // Draw text
+        {
+            let mut text_drawing_baggage = drawing::TextDrawingBaggage {
+                gl: gl.clone(),
+                shader_program: &text_program,
+                drawable_size: (window_width, window_height),
+                display_dpi: (ddpi, hdpi, vdpi),
+                font_face: &cardinal_font_face,
+                text_cache: &mut text_cache
+            };
 
-        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: 0.70 }, 20, "5 cities".to_string(),      drawing::ColorSpec { r: 0xFF, g: 0x40, b: 0x40 });
-        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: 0.62 }, 20, "14 villages".to_string(),   drawing::ColorSpec { r: 0xFF, g: 0x40, b: 0x40 });
-        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: 0.54 }, 20, "2 strongholds".to_string(), drawing::ColorSpec { r: 0xFF, g: 0x40, b: 0x40 });
-        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: 0.46 }, 20, "7 knights".to_string(),     drawing::ColorSpec { r: 0xFF, g: 0x40, b: 0x40 });
+            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: 0.85 }, 48, "Fast and Feudalist".to_string(), drawing::ColorSpec { r: 0xFF, g: 0xD7, b: 0x00 });
 
-        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.30 }, 24, "Water".to_string(),        GameBoardSpaceType::Water.color());
-        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.40 }, 24, "Mountain = 2".to_string(), GameBoardSpaceType::Mountain.color());
-        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.50 }, 24, "Forest = 3".to_string(),   GameBoardSpaceType::Forest.color());
-        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.60 }, 24, "Plains = 4".to_string(),   GameBoardSpaceType::Plains.color());
-        drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: -0.70 }, 24, "Field = 5".to_string(),    GameBoardSpaceType::Field.color());
+            match game_ui_data.game_stage {
+                GameStage::SetupBoard => {
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "Game Setup".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.18, y: 0.82 }, 18, "Lay board game pieces to build the map.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                }
+                GameStage::SetupCities => {
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "City Setup".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.22, y: 0.82 }, 18, "Place cities to determine your starting positions.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                }
+                GameStage::Play => {
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "Game Play".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.09, y: 0.82 }, 18, "Choose an action.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                }
+                GameStage::End => {}
+            }
+
+
+            {
+                let (mut x_scale, mut y_scale) = scaling_for_board((window_width, window_height));
+                x_scale = x_scale * drawing_constants::HEXAGON_WIDTH * 0.5;
+                y_scale = y_scale * drawing_constants::HEXAGON_HEIGHT * 0.5;
+
+                drawing::draw_image(
+                    &gl,
+                    &image_program,
+                    &city_image,
+                    drawing::PositionSpec{ x: -0.95, y: 0.60 },
+                    drawing::SizeSpec{ x: x_scale, y: y_scale});
+
+                drawing::draw_image(
+                    &gl,
+                    &image_program,
+                    &stronghold_image,
+                    drawing::PositionSpec{ x: -0.95, y: 0.51 },
+                    drawing::SizeSpec{ x: x_scale, y: y_scale});
+
+                drawing::draw_image(
+                    &gl,
+                    &image_program,
+                    &village_image,
+                    drawing::PositionSpec{ x: -0.92, y: 0.44 },
+                    drawing::SizeSpec{ x: x_scale * 0.5, y: y_scale * 0.5});
+
+                drawing::draw_image(
+                    &gl,
+                    &image_program,
+                    &knight_image,
+                    drawing::PositionSpec{ x: -0.92, y: 0.36 },
+                    drawing::SizeSpec{ x: x_scale * 0.5, y: y_scale * 0.5});
+            }
+            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.60 }, 24, "5".to_string(),  player_color_spec.clone());
+            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.52 }, 24, "2".to_string(),  player_color_spec.clone());
+            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.44 }, 24, "14".to_string(), player_color_spec.clone());
+            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.36 }, 24, "7".to_string(),  player_color_spec.clone());
+        }
+
+        // Draw cities
+        for city in &game_ui_data.cities {
+            let (x_scale, y_scale) = scaling_for_board((window_width, window_height));
+            let drawing_pos = game_board_pos_to_drawing_pos((&city).position);
+            {
+                let x_margin = 0.25;
+                let y_margin = 0.25;
+                let x_offset = 0.0;
+                let y_offset = 0.5;
+
+                drawing::draw_image(
+                    &gl,
+                    &image_program,
+                    &city_image,
+                    drawing::PositionSpec{
+                        x: drawing_pos.x * x_scale - 0.5 * drawing_constants::HEXAGON_WIDTH * x_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (x_margin + x_offset),
+                        y: drawing_pos.y * y_scale - 0.5 * drawing_constants::HEXAGON_HEIGHT * y_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (y_margin + y_offset)},
+                    drawing::SizeSpec{
+                        x: drawing_constants::HEXAGON_WIDTH * x_scale * (1.0 - x_margin * 2.0),
+                        y: drawing_constants::HEXAGON_HEIGHT * y_scale * (1.0 - y_margin * 2.0)});
+            }
+            {
+                let x_margin = 3.0 / 8.0;
+                let y_margin = 3.0 / 8.0;
+                let x_offset = -0.2;
+                let y_offset = -0.2;
+
+                drawing::draw_image(
+                    &gl,
+                    &image_program,
+                    &knight_image,
+                    drawing::PositionSpec{
+                        x: drawing_pos.x * x_scale - 0.5 * drawing_constants::HEXAGON_WIDTH * x_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (x_margin + x_offset),
+                        y: drawing_pos.y * y_scale - 0.5 * drawing_constants::HEXAGON_HEIGHT * y_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (y_margin + y_offset)},
+                    drawing::SizeSpec{
+                        x: drawing_constants::HEXAGON_WIDTH * x_scale * (1.0 - x_margin * 2.0),
+                        y: drawing_constants::HEXAGON_HEIGHT * y_scale * (1.0 - y_margin * 2.0)});
+            }
+        }
 
         // Swap the window pixels with what we have just rendered
         window.gl_swap_window();
