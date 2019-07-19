@@ -45,7 +45,7 @@ use colors::Color;
 use mouse_position::{MousePos, mouse_pos_to_game_board_pos, mouse_pos_to_board_piece_destination};
 use rand::Rng;
 use resources::Resources;
-use gameboard::{GameBoardSpaceType,GameBoardSpacePos};
+use gameboard::{BoardPiece,GameBoardSpaceType,GameBoardSpacePos,game_board_pos_to_drawing_pos};
 use std::path::Path;
 
 #[derive(Clone,PartialEq)]
@@ -91,29 +91,6 @@ fn scaling_for_board(drawable_size: (u32, u32)) -> (f32, f32) {
 }
 
 
-fn game_board_pos_to_drawing_pos(position: GameBoardSpacePos) -> drawing::PositionSpec {
-    let x_pos_translated = drawing_constants::GAME_BOARD_ORIGIN_X
-        +
-        (drawing_constants::HEXAGON_WIDTH / 2.0)
-        +
-        position.x_pos as f32 * drawing_constants::HEXAGON_X_SPACING;
-
-    // This is like a ternary operator, but more verbose.  I think it's easier to read.
-    // Even numbered columns will be half a hexagon height higher than odd numbered columns.
-
-    let y_pos_translated = drawing_constants::GAME_BOARD_ORIGIN_Y
-        +
-        (drawing_constants::HEXAGON_HEIGHT / 2.0)
-        +
-        position.y_pos as f32 * drawing_constants::HEXAGON_Y_SPACING
-        +
-        if position.x_pos % 2 == 1 { drawing_constants::HEXAGON_HEIGHT / 2.0 }
-        else { 0.0 };
-
-    drawing::PositionSpec { x: x_pos_translated, y: y_pos_translated }
-}
-
-
 fn draw_game_board_space(gl: &gl::Gl, shader_program: &render_gl::Program, space_type: GameBoardSpaceType, position: GameBoardSpacePos) {
     match space_type {
         GameBoardSpaceType::Void => {},
@@ -154,15 +131,6 @@ fn highlight_space_for_board_setup(gl: &gl::Gl, shader_program: &render_gl::Prog
                 3.0);
         }
     }
-}
-
-
-// a, b, c spaces are in clockwise order
-#[derive(Clone)]
-pub struct BoardPiece {
-    a: GameBoardSpaceType,
-    b: GameBoardSpaceType,
-    c: GameBoardSpaceType
 }
 
 
