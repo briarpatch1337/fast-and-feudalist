@@ -37,77 +37,14 @@ pub mod resources;
 
 // And some more
 pub mod drawing;
+pub mod colors;
+pub mod gameboard;
 
+use colors::Color;
 use rand::Rng;
 use resources::Resources;
+use gameboard::{GameBoardSpaceType,GameBoardSpacePos};
 use std::path::Path;
-
-// This is like defining an interface.  We'll have enums implement this trait if there are colors associated with the enum value.
-trait Color {
-    fn color(&self) -> drawing::ColorSpec;
-}
-
-#[derive(Copy,Clone,PartialEq)]
-enum GameBoardSpaceType
-{
-    Void,
-    Water,
-    Mountain,
-    Forest,
-    Plains,
-    Field
-}
-
-impl Color for GameBoardSpaceType
-{
-    fn color(&self) -> drawing::ColorSpec {
-        match self {
-            GameBoardSpaceType::Void => drawing::ColorSpec {
-                r: 0x00,
-                g: 0x00,
-                b: 0x00
-            },
-            GameBoardSpaceType::Water => drawing::ColorSpec {
-                r: 0x20,
-                g: 0x20,
-                b: 0x80
-            },
-            GameBoardSpaceType::Mountain => drawing::ColorSpec {
-                r: 0x40,
-                g: 0x40,
-                b: 0x40
-            },
-            GameBoardSpaceType::Forest => drawing::ColorSpec {
-                r: 0x11,
-                g: 0x46,
-                b: 0x11,
-            },
-            GameBoardSpaceType::Plains => drawing::ColorSpec {
-                r: 0x00,
-                g: 0x80,
-                b: 0x40
-            },
-            GameBoardSpaceType::Field => drawing::ColorSpec {
-                r: 0x80,
-                g: 0x70,
-                b: 0x00
-            }
-        }
-    }
-}
-
-
-impl rand::distributions::Distribution<GameBoardSpaceType> for rand::distributions::Standard {
-    fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> GameBoardSpaceType {
-        match rng.gen_range(0, 5) {
-            0 => GameBoardSpaceType::Water,
-            1 => GameBoardSpaceType::Mountain,
-            2 => GameBoardSpaceType::Forest,
-            3 => GameBoardSpaceType::Plains,
-            _ => GameBoardSpaceType::Field,
-        }
-    }
-}
 
 #[derive(Clone,PartialEq)]
 enum PlayerColor
@@ -116,118 +53,6 @@ enum PlayerColor
     Blue,
     Green,
     Yellow
-}
-
-impl Color for PlayerColor {
-    fn color(&self) -> drawing::ColorSpec {
-        match self {
-            PlayerColor::Red => drawing::ColorSpec {
-                r: 0xC0,
-                g: 0x00,
-                b: 0x00
-            },
-            PlayerColor::Blue => drawing::ColorSpec {
-                r: 0x00,
-                g: 0x00,
-                b: 0xFF
-            },
-            PlayerColor::Green => drawing::ColorSpec {
-                r: 0x00,
-                g: 0xD0,
-                b: 0x00
-            },
-            PlayerColor::Yellow => drawing::ColorSpec {
-                r: 0xFF,
-                g: 0xD7,
-                b: 0x00,
-            }
-        }
-    }
-}
-
-
-#[derive(Clone, Copy, PartialEq)]
-struct GameBoardSpacePos {
-    x_pos: u8,
-    y_pos: u8
-}
-
-impl GameBoardSpacePos {
-    // Return the position of the space which is above this space.
-    fn up(&self) -> Option<GameBoardSpacePos> {
-        let next_y = self.y_pos + 1;
-        if next_y < game_constants::MAX_BOARD_HEIGHT as u8 {
-            Some(GameBoardSpacePos {
-                x_pos: self.x_pos,
-                y_pos: next_y})
-        } else {
-            None
-        }
-    }
-
-    // Return the position of the space which is up and to the right of this space.
-    fn up_right(&self) -> Option<GameBoardSpacePos> {
-        let next_x = self.x_pos + 1;
-        let next_y = if self.x_pos % 2 == 1 {self.y_pos + 1} else {self.y_pos};
-        if next_x < game_constants::MAX_BOARD_WIDTH as u8 && next_y < game_constants::MAX_BOARD_HEIGHT as u8 {
-            Some(GameBoardSpacePos {
-                x_pos: next_x,
-                y_pos: next_y})
-        } else {
-            None
-        }
-    }
-
-    // Return the position of the space which is down and to the right of this space.
-    fn down_right(&self) -> Option<GameBoardSpacePos> {
-        let next_x = self.x_pos + 1;
-        let next_y = if self.x_pos % 2 == 1 {self.y_pos as i8} else {self.y_pos as i8 - 1};
-        if next_x < game_constants::MAX_BOARD_WIDTH as u8 && next_y >= 0 {
-            Some(GameBoardSpacePos {
-                x_pos: next_x,
-                y_pos: next_y as u8})
-        } else {
-            None
-        }
-    }
-
-    // Return the position of the space which is below this space.
-    fn down(&self) -> Option<GameBoardSpacePos> {
-        let next_y = self.y_pos as i8 - 1;
-        if next_y >= 0 {
-            Some(GameBoardSpacePos {
-                x_pos: self.x_pos,
-                y_pos: next_y as u8})
-        } else {
-            None
-        }
-    }
-
-    // Return the position of the space which is down and to the left of this space.
-    fn down_left(&self) -> Option<GameBoardSpacePos> {
-        let next_x = self.x_pos as i8 - 1;
-        let next_y = if self.x_pos % 2 == 1 {self.y_pos as i8} else {self.y_pos as i8 - 1};
-        if next_x >= 0 && next_y >= 0 {
-            Some(GameBoardSpacePos {
-                x_pos: next_x as u8,
-                y_pos: next_y as u8})
-        } else {
-            None
-        }
-    }
-
-    // Return the position of the space which is up and to the left of this space.
-    fn up_left(&self) -> Option<GameBoardSpacePos> {
-        let next_x = self.x_pos as i8 - 1;
-        let next_y = if self.x_pos % 2 == 1 {self.y_pos + 1} else {self.y_pos};
-        if next_x >= 0 && next_y < game_constants::MAX_BOARD_HEIGHT as u8 {
-            Some(GameBoardSpacePos {
-                x_pos: next_x as u8,
-                y_pos: next_y})
-        } else {
-            None
-        }
-    }
 }
 
 #[derive(Clone, Copy)]
