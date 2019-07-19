@@ -1,6 +1,6 @@
 
 use drawing::ColorSpec;
-use gameboard::GameBoardSpaceType;
+use gameboard::gameboard::GameBoardSpaceType;
 use PlayerColor;
 
 // This is like defining an interface.  We'll have enums implement this trait if there are colors associated with the enum value.

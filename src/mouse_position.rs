@@ -3,7 +3,7 @@ use drawing;
 use drawing_constants;
 use game_constants;
 use scaling_for_board;
-use gameboard::GameBoardSpacePos;
+use gameboard::gameboard::GameBoardSpacePos;
 
 #[derive(Clone, Copy)]
 pub struct MousePos {

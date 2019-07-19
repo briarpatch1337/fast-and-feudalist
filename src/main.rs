@@ -45,7 +45,7 @@ use colors::Color;
 use mouse_position::{MousePos, mouse_pos_to_game_board_pos, mouse_pos_to_board_piece_destination};
 use rand::Rng;
 use resources::Resources;
-use gameboard::{BoardPiece,GameBoardSpaceType,GameBoardSpacePos,game_board_pos_to_drawing_pos,game_constants};
+use gameboard::gameboard::{BoardPiece,GameBoardSpaceType,GameBoardSpacePos,game_board_pos_to_drawing_pos,game_constants};
 use std::path::Path;
 
 #[derive(Clone,PartialEq)]
