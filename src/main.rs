@@ -46,7 +46,7 @@ use mouse_position::{MousePos, mouse_pos_to_game_board_pos, mouse_pos_to_board_p
 use rand::Rng;
 use resources::Resources;
 use gameboard::gameboard::{BoardPiece,GameBoardSpaceType,GameBoardSpacePos,game_board_pos_to_drawing_pos,game_constants};
-use gameboard::gameboard_drawing::{draw_game_board_space,drawing_constants,highlight_space_for_board_setup,scaling_for_board};
+use gameboard::gameboard_drawing::{drawing_constants,highlight_space_for_board_setup,scaling_for_board,Draw};
 use std::path::Path;
 
 #[derive(Clone,PartialEq)]
@@ -66,7 +66,6 @@ enum GameStage
     Play,
     End
 }
-
 
 
 // UI data, for now, will be constructed in the main function, and passed by reference where needed.
@@ -126,17 +125,6 @@ fn drop_board_piece(game_ui_data: &mut GameUIData, drawable_size: (u32, u32), la
             }
         }
         None => {}
-    }
-}
-
-
-fn draw_game_board(gl: &gl::Gl, shader_program: &render_gl::Program, game_ui_data: &GameUIData) {
-    for x in 0..game_constants::MAX_BOARD_WIDTH {
-        for y in 0..game_constants::MAX_BOARD_HEIGHT {
-            let position = GameBoardSpacePos {x_pos: x as u8, y_pos: y as u8};
-            let space_type = game_ui_data.game_board.getBoardSpaceType(position);
-            draw_game_board_space(&gl, &shader_program, space_type, position);
-        }
     }
 }
 
@@ -528,7 +516,7 @@ fn main() {
         }
 
         // Draw
-        draw_game_board(&gl, &shader_program, &game_ui_data);
+        game_ui_data.game_board.drawBoard(&gl, &shader_program);
 
         match game_ui_data.game_stage {
             GameStage::SetupBoard => {
@@ -541,18 +529,7 @@ fn main() {
         }
 
         // Draw rectangular border around the game board area.
-        drawing::draw_rectangle_outline(
-            &gl,
-            &shader_program,
-            drawing::RectangleSpec {
-                color: drawing::ColorSpec { r: 0xFF, g: 0xFF, b: 0xFF },
-                pos: drawing::PositionSpec {
-                    x: drawing_constants::GAME_BOARD_ORIGIN_X,
-                    y: drawing_constants::GAME_BOARD_ORIGIN_Y },
-                size: drawing::SizeSpec {
-                    x: drawing_constants::HEXAGON_X_SPACING * game_constants::MAX_BOARD_WIDTH as f32 + 0.25 * drawing_constants::HEXAGON_WIDTH,
-                    y: drawing_constants::HEXAGON_Y_SPACING * game_constants::MAX_BOARD_HEIGHT as f32 + 0.5 * drawing_constants::HEXAGON_HEIGHT}},
-            3.0);
+        gameboard::gameboard::GameBoard::drawBorder(&gl, &shader_program);
 
         // Draw scroll image
         drawing::draw_image(
@@ -632,44 +609,7 @@ fn main() {
         }
 
         // Draw cities
-        for city in game_ui_data.game_board.cities() {
-            let (x_scale, y_scale) = scaling_for_board((window_width, window_height));
-            let drawing_pos = game_board_pos_to_drawing_pos((&city).position);
-            {
-                let x_margin = 0.25;
-                let y_margin = 0.25;
-                let x_offset = 0.0;
-                let y_offset = 0.5;
-
-                drawing::draw_image(
-                    &gl,
-                    &image_program,
-                    &city_image,
-                    drawing::PositionSpec{
-                        x: drawing_pos.x * x_scale - 0.5 * drawing_constants::HEXAGON_WIDTH * x_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (x_margin + x_offset),
-                        y: drawing_pos.y * y_scale - 0.5 * drawing_constants::HEXAGON_HEIGHT * y_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (y_margin + y_offset)},
-                    drawing::SizeSpec{
-                        x: drawing_constants::HEXAGON_WIDTH * x_scale * (1.0 - x_margin * 2.0),
-                        y: drawing_constants::HEXAGON_HEIGHT * y_scale * (1.0 - y_margin * 2.0)});
-            }
-            {
-                let x_margin = 3.0 / 8.0;
-                let y_margin = 3.0 / 8.0;
-                let x_offset = -0.2;
-                let y_offset = -0.2;
-
-                drawing::draw_image(
-                    &gl,
-                    &image_program,
-                    &knight_image,
-                    drawing::PositionSpec{
-                        x: drawing_pos.x * x_scale - 0.5 * drawing_constants::HEXAGON_WIDTH * x_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (x_margin + x_offset),
-                        y: drawing_pos.y * y_scale - 0.5 * drawing_constants::HEXAGON_HEIGHT * y_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (y_margin + y_offset)},
-                    drawing::SizeSpec{
-                        x: drawing_constants::HEXAGON_WIDTH * x_scale * (1.0 - x_margin * 2.0),
-                        y: drawing_constants::HEXAGON_HEIGHT * y_scale * (1.0 - y_margin * 2.0)});
-            }
-        }
+        game_ui_data.game_board.drawCities(&gl, &image_program, (window_width, window_height), &city_image, &knight_image);
 
         // Swap the window pixels with what we have just rendered
         window.gl_swap_window();
