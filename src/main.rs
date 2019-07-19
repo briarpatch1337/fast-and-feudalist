@@ -88,14 +88,11 @@ impl GameUIData {
             pos_under_mouse_for_city_setup: None
         }
     }
-}
 
-
-fn drop_board_piece(game_ui_data: &mut GameUIData, drawable_size: (u32, u32), last_mouse_click_pos: MousePos) {
-    let result = mouse_pos_to_board_piece_destination(last_mouse_click_pos, drawable_size);
-    match result {
-        Some((pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c)) => {
-            let game_board = &mut game_ui_data.game_board;
+    fn drop_board_piece(&mut self) {
+        if self.pos_under_mouse_for_board_setup.is_some() {
+            let (pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c) = self.pos_under_mouse_for_board_setup.unwrap();
+            let game_board = &mut self.game_board;
 
             if
                 game_board.get_board_space_type(pos_under_mouse_a) == GameBoardSpaceType::Void &&
@@ -103,8 +100,8 @@ fn drop_board_piece(game_ui_data: &mut GameUIData, drawable_size: (u32, u32), la
                 game_board.get_board_space_type(pos_under_mouse_c) == GameBoardSpaceType::Void
             {
                 // pick a card, any card.
-                let old_len = game_ui_data.unplaced_board_pieces.len();
-                let new_game_piece = game_ui_data.unplaced_board_pieces.remove(rand::thread_rng().gen_range(0, old_len));
+                let old_len = self.unplaced_board_pieces.len();
+                let new_game_piece = self.unplaced_board_pieces.remove(rand::thread_rng().gen_range(0, old_len));
 
                 // randomize the orientation
                 let (new_a, new_b, new_c) =
@@ -121,11 +118,27 @@ fn drop_board_piece(game_ui_data: &mut GameUIData, drawable_size: (u32, u32), la
             const PIECES_PER_PLAYER: usize = 9;
             let num_players = 1;
 
-            if game_ui_data.unplaced_board_pieces.len() <= game_constants::BOARD_PIECES.len() - PIECES_PER_PLAYER * num_players {
-                game_ui_data.game_stage = GameStage::SetupCities;
+            if self.unplaced_board_pieces.len() <= game_constants::BOARD_PIECES.len() - PIECES_PER_PLAYER * num_players {
+                self.game_stage = GameStage::SetupCities;
             }
         }
-        None => {}
+    }
+
+    fn drop_city(&mut self, player_color: PlayerColor) {
+        if self.pos_under_mouse_for_city_setup.is_some() {
+            let pos_under_mouse = self.pos_under_mouse_for_city_setup.unwrap();
+            match self.game_board.get_board_space_type(pos_under_mouse) {
+                GameBoardSpaceType::Void => {}
+                _ => {
+                    if self.game_board.space_ok_for_city(pos_under_mouse) {
+                        self.game_board.add_city(pos_under_mouse, player_color);
+                        if self.game_board.num_cities() >= 3 {
+                            self.game_stage = GameStage::Play;
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -357,7 +370,6 @@ fn main() {
     'main: loop {
         let mut mouse_clicked = false;
         let mut mouse_moved = false;
-        let mut last_mouse_click_pos = MousePos { x_pos: 0, y_pos: 0 };
         let mut key_pressed = false;
         let mut last_key_pressed_scancode: Option<sdl2::keyboard::Scancode> = None;
 
@@ -368,8 +380,7 @@ fn main() {
                 // SDL_QuitEvent
                 sdl2::event::Event::Quit { .. } => { break 'main }
                 // SDL_MouseButtonEvent
-                sdl2::event::Event::MouseButtonDown {timestamp: _, window_id: _, which: _, mouse_btn: _, clicks: _, x: x_mouse, y: y_mouse} => {
-                    last_mouse_click_pos = MousePos { x_pos: x_mouse, y_pos: y_mouse };
+                sdl2::event::Event::MouseButtonDown {timestamp: _, window_id: _, which: _, mouse_btn: _, clicks: _, x: _, y: _} => {
                     mouse_clicked = true;
                 }
                 // SDL_MouseMotionEvent
@@ -402,34 +413,6 @@ fn main() {
 
         // No more events to handle
 
-        if mouse_clicked {
-            match game_ui_data.game_stage {
-                GameStage::SetupBoard => {
-                    drop_board_piece(&mut game_ui_data, (window_width, window_height), last_mouse_click_pos);
-                }
-                GameStage::SetupCities => {
-                    match game_ui_data.pos_under_mouse_for_city_setup {
-                        Some(pos_under_mouse) => {
-                            match game_ui_data.game_board.get_board_space_type(pos_under_mouse) {
-                                GameBoardSpaceType::Void => {}
-                                _ => {
-                                    if game_ui_data.game_board.space_ok_for_city(pos_under_mouse) {
-                                        game_ui_data.game_board.add_city(pos_under_mouse, player_color.clone());
-                                        if game_ui_data.game_board.num_cities() >= 3 {
-                                            game_ui_data.game_stage = GameStage::Play;
-                                        }
-                                    }
-                                }
-                            }
-
-                        }
-                        None => {}
-                    }
-                }
-                _ => {}
-            }
-        }
-
         if mouse_moved {
             match game_ui_data.game_stage {
                 GameStage::SetupBoard => {
@@ -437,6 +420,18 @@ fn main() {
                 }
                 GameStage::SetupCities => {
                     game_ui_data.pos_under_mouse_for_city_setup = mouse_pos_to_game_board_pos(current_mouse_pos, (window_width, window_height));
+                }
+                _ => {}
+            }
+        }
+
+        if mouse_clicked {
+            match game_ui_data.game_stage {
+                GameStage::SetupBoard => {
+                    game_ui_data.drop_board_piece();
+                }
+                GameStage::SetupCities => {
+                    game_ui_data.drop_city(player_color.clone());
                 }
                 _ => {}
             }
