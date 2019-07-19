@@ -45,8 +45,8 @@ use colors::Color;
 use mouse_position::{MousePos, mouse_pos_to_game_board_pos, mouse_pos_to_board_piece_destination};
 use rand::Rng;
 use resources::Resources;
-use gameboard::gameboard::{BoardPiece,GameBoardSpaceType,GameBoardSpacePos,game_board_pos_to_drawing_pos,game_constants};
-use gameboard::gameboard_drawing::{drawing_constants,highlight_space_for_board_setup,scaling_for_board,Draw};
+use gameboard::gameboard::{BoardPiece,GameBoardSpaceType,GameBoardSpacePos,game_constants};
+use gameboard::gameboard_drawing::{drawing_constants,highlight_space_for_board_setup,highlight_space_for_city_setup,scaling_for_board,Draw};
 use std::path::Path;
 
 #[derive(Clone,PartialEq)]
@@ -143,60 +143,6 @@ fn highlight_spaces_for_board_setup(gl: &gl::Gl, shader_program: &render_gl::Pro
         None => {}
     }
 }
-
-
-fn highlight_space_for_city_setup(gl: &gl::Gl, shader_program: &render_gl::Program, image_program: &render_gl::Program, city_image: &nsvg::image::RgbaImage, game_ui_data: &GameUIData, drawable_size: (u32, u32)) {
-    let (x_scale, y_scale) = scaling_for_board(drawable_size);
-
-    match game_ui_data.pos_under_mouse_for_city_setup {
-        Some(pos_under_mouse) => {
-            match game_ui_data.game_board.get_board_space_type(pos_under_mouse) {
-                GameBoardSpaceType::Void => {},
-                _ => {
-                    if game_ui_data.game_board.space_ok_for_city(pos_under_mouse) {
-                        let drawing_pos = game_board_pos_to_drawing_pos(pos_under_mouse);
-                        let x_margin = 0.25;
-                        let y_margin = 0.25;
-                        let x_offset = 0.0;
-                        let y_offset = 0.5;
-
-                        drawing::draw_image(
-                            &gl,
-                            &image_program,
-                            &city_image,
-                            drawing::PositionSpec{
-                                x: drawing_pos.x * x_scale - 0.5 * drawing_constants::HEXAGON_WIDTH * x_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (x_margin + x_offset),
-                                y: drawing_pos.y * y_scale - 0.5 * drawing_constants::HEXAGON_HEIGHT * y_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (y_margin + y_offset)},
-                            drawing::SizeSpec{
-                                x: drawing_constants::HEXAGON_WIDTH * x_scale * (1.0 - x_margin * 2.0),
-                                y: drawing_constants::HEXAGON_HEIGHT * y_scale * (1.0 - y_margin * 2.0)});
-
-                        drawing::draw_hexagon_outline(
-                            &gl,
-                            &shader_program,
-                            drawing::HexagonSpec {
-                                color: drawing::ColorSpec { r: 0xFF, g: 0xFF, b: 0xFF },
-                                pos: drawing_pos,
-                                width: drawing_constants::HEXAGON_WIDTH },
-                            3.0);
-                    } else {
-                        let drawing_pos = game_board_pos_to_drawing_pos(pos_under_mouse);
-                        drawing::draw_hexagon_outline(
-                            &gl,
-                            &shader_program,
-                            drawing::HexagonSpec {
-                                color: drawing::ColorSpec { r: 0xFF, g: 0x00, b: 0x00 },
-                                pos: drawing_pos,
-                                width: drawing_constants::HEXAGON_WIDTH },
-                            3.0);
-                    }
-                }
-            }
-        }
-        None => {}
-    }
-}
-
 
 
 //
@@ -523,7 +469,12 @@ fn main() {
                 highlight_spaces_for_board_setup(&gl, &shader_program, &game_ui_data);
             }
             GameStage::SetupCities => {
-                highlight_space_for_city_setup(&gl, &shader_program, &image_program, &city_image, &game_ui_data, (window_width, window_height));
+                match game_ui_data.pos_under_mouse_for_city_setup {
+                    Some(pos_under_mouse) => {
+                        highlight_space_for_city_setup(&gl, &shader_program, &image_program, &city_image, pos_under_mouse, &game_ui_data.game_board, (window_width, window_height));
+                    }
+                    None => {}
+                }
             }
             _ => {}
         }
