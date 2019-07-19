@@ -183,12 +183,12 @@ pub mod game_constants {
 
 pub struct CityInfo {
     pub position: GameBoardSpacePos,
-    pub owner: PlayerColor
+    owner: PlayerColor
 }
 
 pub struct GameBoard {
-    pub board_state: [[GameBoardSpaceType; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT],
-    pub cities: std::vec::Vec<CityInfo>
+    board_state: [[GameBoardSpaceType; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT],
+    cities: std::vec::Vec<CityInfo>
 }
 
 impl GameBoard {
@@ -196,6 +196,50 @@ impl GameBoard {
         GameBoard {
             board_state: [[GameBoardSpaceType::Void; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT],
             cities: std::vec::Vec::<CityInfo>::new()
+        }
+    }
+
+    pub fn getBoardSpaceType(&self, position: GameBoardSpacePos) -> GameBoardSpaceType {
+        self.board_state[position.y_pos as usize][position.x_pos as usize]
+    }
+
+    pub fn setBoardSpaceType(&mut self, position: GameBoardSpacePos, space_type: GameBoardSpaceType) {
+        self.board_state[position.y_pos as usize][position.x_pos as usize] = space_type;
+    }
+
+    pub fn cities(&self) -> std::slice::Iter<CityInfo> {
+        self.cities.iter()
+    }
+
+    pub fn numCities(&self) -> usize {
+        self.cities.len()
+    }
+
+    pub fn addCity(&mut self, position: GameBoardSpacePos, owner: PlayerColor) {
+        self.cities.push(CityInfo{ position: position, owner: owner });
+    }
+
+    pub fn space_ok_for_city(&self, position: GameBoardSpacePos) -> bool {
+        match self.getBoardSpaceType(position) {
+            GameBoardSpaceType::Void | GameBoardSpaceType::Water | GameBoardSpaceType::Forest => {
+                false
+            }
+            _ => {
+                for city in self.cities() {
+                    if city.position == position {
+                        return false;
+                    }
+                }
+                let neighbor_positions = [position.up(), position.down(), position.up_right(), position.up_left(), position.down_right(), position.down_left()];
+                for position in &neighbor_positions {
+                    for city in self.cities() {
+                        if position.is_some() && city.position == position.unwrap() {
+                            return false;
+                        }
+                    }
+                }
+                true
+            }
         }
     }
 }

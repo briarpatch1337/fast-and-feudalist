@@ -95,19 +95,12 @@ fn drop_board_piece(game_ui_data: &mut GameUIData, drawable_size: (u32, u32), la
     let result = mouse_pos_to_board_piece_destination(last_mouse_click_pos, drawable_size);
     match result {
         Some((pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c)) => {
-            let board_state = &mut game_ui_data.game_board.board_state;
-
-            let x_a = pos_under_mouse_a.x_pos as usize;
-            let y_a = pos_under_mouse_a.y_pos as usize;
-            let x_b = pos_under_mouse_b.x_pos as usize;
-            let y_b = pos_under_mouse_b.y_pos as usize;
-            let x_c = pos_under_mouse_c.x_pos as usize;
-            let y_c = pos_under_mouse_c.y_pos as usize;
+            let game_board = &mut game_ui_data.game_board;
 
             if
-                board_state[y_a][x_a] == GameBoardSpaceType::Void &&
-                board_state[y_b][x_b] == GameBoardSpaceType::Void &&
-                board_state[y_c][x_c] == GameBoardSpaceType::Void
+                game_board.getBoardSpaceType(pos_under_mouse_a) == GameBoardSpaceType::Void &&
+                game_board.getBoardSpaceType(pos_under_mouse_b) == GameBoardSpaceType::Void &&
+                game_board.getBoardSpaceType(pos_under_mouse_c) == GameBoardSpaceType::Void
             {
                 // pick a card, any card.
                 let old_len = game_ui_data.unplaced_board_pieces.len();
@@ -120,9 +113,9 @@ fn drop_board_piece(game_ui_data: &mut GameUIData, drawable_size: (u32, u32), la
                         1 => (new_game_piece.b, new_game_piece.c, new_game_piece.a),
                         _ => (new_game_piece.c, new_game_piece.a, new_game_piece.b)
                     };
-                board_state[y_a][x_a] = new_a;
-                board_state[y_b][x_b] = new_b;
-                board_state[y_c][x_c] = new_c;
+                game_board.setBoardSpaceType(pos_under_mouse_a, new_a);
+                game_board.setBoardSpaceType(pos_under_mouse_b, new_b);
+                game_board.setBoardSpaceType(pos_under_mouse_c, new_c);
             }
 
             const PIECES_PER_PLAYER: usize = 9;
@@ -140,7 +133,9 @@ fn drop_board_piece(game_ui_data: &mut GameUIData, drawable_size: (u32, u32), la
 fn draw_game_board(gl: &gl::Gl, shader_program: &render_gl::Program, game_ui_data: &GameUIData) {
     for x in 0..game_constants::MAX_BOARD_WIDTH {
         for y in 0..game_constants::MAX_BOARD_HEIGHT {
-            draw_game_board_space(&gl, &shader_program, game_ui_data.game_board.board_state[y][x], GameBoardSpacePos {x_pos: x as u8, y_pos: y as u8});
+            let position = GameBoardSpacePos {x_pos: x as u8, y_pos: y as u8};
+            let space_type = game_ui_data.game_board.getBoardSpaceType(position);
+            draw_game_board_space(&gl, &shader_program, space_type, position);
         }
     }
 }
@@ -149,49 +144,15 @@ fn draw_game_board(gl: &gl::Gl, shader_program: &render_gl::Program, game_ui_dat
 fn highlight_spaces_for_board_setup(gl: &gl::Gl, shader_program: &render_gl::Program, game_ui_data: &GameUIData) {
     match game_ui_data.pos_under_mouse_for_board_setup {
         Some((pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c)) => {
-            let board_state = &game_ui_data.game_board.board_state;
+            let space_type_a = game_ui_data.game_board.getBoardSpaceType(pos_under_mouse_a);
+            let space_type_b = game_ui_data.game_board.getBoardSpaceType(pos_under_mouse_b);
+            let space_type_c = game_ui_data.game_board.getBoardSpaceType(pos_under_mouse_c);
 
-            let x_a = pos_under_mouse_a.x_pos as usize;
-            let y_a = pos_under_mouse_a.y_pos as usize;
-            let x_b = pos_under_mouse_b.x_pos as usize;
-            let y_b = pos_under_mouse_b.y_pos as usize;
-            let x_c = pos_under_mouse_c.x_pos as usize;
-            let y_c = pos_under_mouse_c.y_pos as usize;
-            highlight_space_for_board_setup(&gl, &shader_program, board_state[y_a][x_a], pos_under_mouse_a);
-            highlight_space_for_board_setup(&gl, &shader_program, board_state[y_b][x_b], pos_under_mouse_b);
-            highlight_space_for_board_setup(&gl, &shader_program, board_state[y_c][x_c], pos_under_mouse_c);
+            highlight_space_for_board_setup(&gl, &shader_program, space_type_a, pos_under_mouse_a);
+            highlight_space_for_board_setup(&gl, &shader_program, space_type_b, pos_under_mouse_b);
+            highlight_space_for_board_setup(&gl, &shader_program, space_type_c, pos_under_mouse_c);
         }
         None => {}
-    }
-}
-
-
-fn space_ok_for_city(game_ui_data: &GameUIData, position: GameBoardSpacePos) -> bool {
-    let board_state = &game_ui_data.game_board.board_state;
-
-    let x = position.x_pos as usize;
-    let y = position.y_pos as usize;
-
-    match board_state[y][x] {
-        GameBoardSpaceType::Void | GameBoardSpaceType::Water | GameBoardSpaceType::Forest => {
-            false
-        }
-        _ => {
-            for city in game_ui_data.game_board.cities.iter() {
-                if city.position == position {
-                    return false;
-                }
-            }
-            let neighbor_positions = [position.up(), position.down(), position.up_right(), position.up_left(), position.down_right(), position.down_left()];
-            for position in &neighbor_positions {
-                for city in game_ui_data.game_board.cities.iter() {
-                    if position.is_some() && city.position == position.unwrap() {
-                        return false;
-                    }
-                }
-            }
-            true
-        }
     }
 }
 
@@ -201,14 +162,10 @@ fn highlight_space_for_city_setup(gl: &gl::Gl, shader_program: &render_gl::Progr
 
     match game_ui_data.pos_under_mouse_for_city_setup {
         Some(pos_under_mouse) => {
-            let board_state = &game_ui_data.game_board.board_state;
-
-            let x = pos_under_mouse.x_pos as usize;
-            let y = pos_under_mouse.y_pos as usize;
-            match board_state[y][x] {
+            match game_ui_data.game_board.getBoardSpaceType(pos_under_mouse) {
                 GameBoardSpaceType::Void => {},
                 _ => {
-                    if space_ok_for_city(game_ui_data, pos_under_mouse) {
+                    if game_ui_data.game_board.space_ok_for_city(pos_under_mouse) {
                         let drawing_pos = game_board_pos_to_drawing_pos(pos_under_mouse);
                         let x_margin = 0.25;
                         let y_margin = 0.25;
@@ -520,14 +477,12 @@ fn main() {
                 GameStage::SetupCities => {
                     match game_ui_data.pos_under_mouse_for_city_setup {
                         Some(pos_under_mouse) => {
-                            let x = pos_under_mouse.x_pos as usize;
-                            let y = pos_under_mouse.y_pos as usize;
-                            match game_ui_data.game_board.board_state[y][x] {
+                            match game_ui_data.game_board.getBoardSpaceType(pos_under_mouse) {
                                 GameBoardSpaceType::Void => {}
                                 _ => {
-                                    if space_ok_for_city(&game_ui_data, pos_under_mouse) {
-                                        game_ui_data.game_board.cities.push(gameboard::gameboard::CityInfo{ position: pos_under_mouse, owner: player_color.clone() });
-                                        if game_ui_data.game_board.cities.len() >= 3 {
+                                    if game_ui_data.game_board.space_ok_for_city(pos_under_mouse) {
+                                        game_ui_data.game_board.addCity(pos_under_mouse, player_color.clone());
+                                        if game_ui_data.game_board.numCities() >= 3 {
                                             game_ui_data.game_stage = GameStage::Play;
                                         }
                                     }
@@ -677,7 +632,7 @@ fn main() {
         }
 
         // Draw cities
-        for city in &game_ui_data.game_board.cities {
+        for city in game_ui_data.game_board.cities() {
             let (x_scale, y_scale) = scaling_for_board((window_width, window_height));
             let drawing_pos = game_board_pos_to_drawing_pos((&city).position);
             {
