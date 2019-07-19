@@ -38,6 +38,7 @@ pub mod resources;
 // And some more
 pub mod drawing;
 pub mod colors;
+pub mod fonts;
 pub mod gameboard;
 pub mod mouse_position;
 
@@ -268,9 +269,7 @@ fn main() {
     audio_device.resume();
 
     // Fonts
-    let freetype_lib = freetype::Library::init().unwrap();
-    let cardinal_font_face = freetype_lib.new_face(Path::new("assets/fonts/Cardinal.ttf"), 0).unwrap();
-    let mut text_cache = drawing::TextCache::new();
+    let mut font_resources = fonts::FontResources::new();
 
     let player_color = PlayerColor::Red;
     //let player_color = PlayerColor::Blue;
@@ -497,8 +496,8 @@ fn main() {
                 shader_program: &text_program,
                 drawable_size: (window_width, window_height),
                 display_dpi: (ddpi, hdpi, vdpi),
-                font_face: &cardinal_font_face,
-                text_cache: &mut text_cache
+                font_face: &font_resources.cardinal_font_face,
+                text_cache: &mut font_resources.text_cache
             };
 
             drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: 0.85 }, 48, "Fast and Feudalist".to_string(), drawing::ColorSpec { r: 0xFF, g: 0xD7, b: 0x00 });
