@@ -199,11 +199,11 @@ impl GameBoard {
         }
     }
 
-    pub fn getBoardSpaceType(&self, position: GameBoardSpacePos) -> GameBoardSpaceType {
+    pub fn get_board_space_type(&self, position: GameBoardSpacePos) -> GameBoardSpaceType {
         self.board_state[position.y_pos as usize][position.x_pos as usize]
     }
 
-    pub fn setBoardSpaceType(&mut self, position: GameBoardSpacePos, space_type: GameBoardSpaceType) {
+    pub fn set_board_space_type(&mut self, position: GameBoardSpacePos, space_type: GameBoardSpaceType) {
         self.board_state[position.y_pos as usize][position.x_pos as usize] = space_type;
     }
 
@@ -211,16 +211,16 @@ impl GameBoard {
         self.cities.iter()
     }
 
-    pub fn numCities(&self) -> usize {
+    pub fn num_cities(&self) -> usize {
         self.cities.len()
     }
 
-    pub fn addCity(&mut self, position: GameBoardSpacePos, owner: PlayerColor) {
+    pub fn add_city(&mut self, position: GameBoardSpacePos, owner: PlayerColor) {
         self.cities.push(CityInfo{ position: position, owner: owner });
     }
 
     pub fn space_ok_for_city(&self, position: GameBoardSpacePos) -> bool {
-        match self.getBoardSpaceType(position) {
+        match self.get_board_space_type(position) {
             GameBoardSpaceType::Void | GameBoardSpaceType::Water | GameBoardSpaceType::Forest => {
                 false
             }

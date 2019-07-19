@@ -97,9 +97,9 @@ fn drop_board_piece(game_ui_data: &mut GameUIData, drawable_size: (u32, u32), la
             let game_board = &mut game_ui_data.game_board;
 
             if
-                game_board.getBoardSpaceType(pos_under_mouse_a) == GameBoardSpaceType::Void &&
-                game_board.getBoardSpaceType(pos_under_mouse_b) == GameBoardSpaceType::Void &&
-                game_board.getBoardSpaceType(pos_under_mouse_c) == GameBoardSpaceType::Void
+                game_board.get_board_space_type(pos_under_mouse_a) == GameBoardSpaceType::Void &&
+                game_board.get_board_space_type(pos_under_mouse_b) == GameBoardSpaceType::Void &&
+                game_board.get_board_space_type(pos_under_mouse_c) == GameBoardSpaceType::Void
             {
                 // pick a card, any card.
                 let old_len = game_ui_data.unplaced_board_pieces.len();
@@ -112,9 +112,9 @@ fn drop_board_piece(game_ui_data: &mut GameUIData, drawable_size: (u32, u32), la
                         1 => (new_game_piece.b, new_game_piece.c, new_game_piece.a),
                         _ => (new_game_piece.c, new_game_piece.a, new_game_piece.b)
                     };
-                game_board.setBoardSpaceType(pos_under_mouse_a, new_a);
-                game_board.setBoardSpaceType(pos_under_mouse_b, new_b);
-                game_board.setBoardSpaceType(pos_under_mouse_c, new_c);
+                game_board.set_board_space_type(pos_under_mouse_a, new_a);
+                game_board.set_board_space_type(pos_under_mouse_b, new_b);
+                game_board.set_board_space_type(pos_under_mouse_c, new_c);
             }
 
             const PIECES_PER_PLAYER: usize = 9;
@@ -132,9 +132,9 @@ fn drop_board_piece(game_ui_data: &mut GameUIData, drawable_size: (u32, u32), la
 fn highlight_spaces_for_board_setup(gl: &gl::Gl, shader_program: &render_gl::Program, game_ui_data: &GameUIData) {
     match game_ui_data.pos_under_mouse_for_board_setup {
         Some((pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c)) => {
-            let space_type_a = game_ui_data.game_board.getBoardSpaceType(pos_under_mouse_a);
-            let space_type_b = game_ui_data.game_board.getBoardSpaceType(pos_under_mouse_b);
-            let space_type_c = game_ui_data.game_board.getBoardSpaceType(pos_under_mouse_c);
+            let space_type_a = game_ui_data.game_board.get_board_space_type(pos_under_mouse_a);
+            let space_type_b = game_ui_data.game_board.get_board_space_type(pos_under_mouse_b);
+            let space_type_c = game_ui_data.game_board.get_board_space_type(pos_under_mouse_c);
 
             highlight_space_for_board_setup(&gl, &shader_program, space_type_a, pos_under_mouse_a);
             highlight_space_for_board_setup(&gl, &shader_program, space_type_b, pos_under_mouse_b);
@@ -146,11 +146,11 @@ fn highlight_spaces_for_board_setup(gl: &gl::Gl, shader_program: &render_gl::Pro
 
 
 fn highlight_space_for_city_setup(gl: &gl::Gl, shader_program: &render_gl::Program, image_program: &render_gl::Program, city_image: &nsvg::image::RgbaImage, game_ui_data: &GameUIData, drawable_size: (u32, u32)) {
-        let (x_scale, y_scale) = scaling_for_board(drawable_size);
+    let (x_scale, y_scale) = scaling_for_board(drawable_size);
 
     match game_ui_data.pos_under_mouse_for_city_setup {
         Some(pos_under_mouse) => {
-            match game_ui_data.game_board.getBoardSpaceType(pos_under_mouse) {
+            match game_ui_data.game_board.get_board_space_type(pos_under_mouse) {
                 GameBoardSpaceType::Void => {},
                 _ => {
                     if game_ui_data.game_board.space_ok_for_city(pos_under_mouse) {
@@ -465,12 +465,12 @@ fn main() {
                 GameStage::SetupCities => {
                     match game_ui_data.pos_under_mouse_for_city_setup {
                         Some(pos_under_mouse) => {
-                            match game_ui_data.game_board.getBoardSpaceType(pos_under_mouse) {
+                            match game_ui_data.game_board.get_board_space_type(pos_under_mouse) {
                                 GameBoardSpaceType::Void => {}
                                 _ => {
                                     if game_ui_data.game_board.space_ok_for_city(pos_under_mouse) {
-                                        game_ui_data.game_board.addCity(pos_under_mouse, player_color.clone());
-                                        if game_ui_data.game_board.numCities() >= 3 {
+                                        game_ui_data.game_board.add_city(pos_under_mouse, player_color.clone());
+                                        if game_ui_data.game_board.num_cities() >= 3 {
                                             game_ui_data.game_stage = GameStage::Play;
                                         }
                                     }
@@ -516,7 +516,7 @@ fn main() {
         }
 
         // Draw
-        game_ui_data.game_board.drawBoard(&gl, &shader_program);
+        game_ui_data.game_board.draw_board(&gl, &shader_program);
 
         match game_ui_data.game_stage {
             GameStage::SetupBoard => {
@@ -529,7 +529,7 @@ fn main() {
         }
 
         // Draw rectangular border around the game board area.
-        gameboard::gameboard::GameBoard::drawBorder(&gl, &shader_program);
+        gameboard::gameboard::GameBoard::draw_border(&gl, &shader_program);
 
         // Draw scroll image
         drawing::draw_image(
@@ -609,7 +609,7 @@ fn main() {
         }
 
         // Draw cities
-        game_ui_data.game_board.drawCities(&gl, &image_program, (window_width, window_height), &city_image, &knight_image);
+        game_ui_data.game_board.draw_cities(&gl, &image_program, (window_width, window_height), &city_image, &knight_image);
 
         // Swap the window pixels with what we have just rendered
         window.gl_swap_window();

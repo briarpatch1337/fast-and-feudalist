@@ -2,7 +2,6 @@ use colors::Color;
 use drawing;
 use gameboard::gameboard::{GameBoard,GameBoardSpaceType,GameBoardSpacePos,game_board_pos_to_drawing_pos,game_constants};
 use gl;
-use nsvg::image::RgbaImage;
 use render_gl;
 
 pub mod drawing_constants {
@@ -79,23 +78,23 @@ pub fn highlight_space_for_board_setup(gl: &gl::Gl, shader_program: &render_gl::
 }
 
 pub trait Draw {
-    fn drawBoard(&self, gl: &gl::Gl, shader_program: &render_gl::Program);
-    fn drawBorder(gl: &gl::Gl, shader_program: &render_gl::Program);
-    fn drawCities(&self, gl: &gl::Gl, shader_program: &render_gl::Program, drawable_size: (u32, u32), city_image: &nsvg::image::RgbaImage, knight_image: &nsvg::image::RgbaImage);
+    fn draw_board(&self, gl: &gl::Gl, shader_program: &render_gl::Program);
+    fn draw_border(gl: &gl::Gl, shader_program: &render_gl::Program);
+    fn draw_cities(&self, gl: &gl::Gl, shader_program: &render_gl::Program, drawable_size: (u32, u32), city_image: &nsvg::image::RgbaImage, knight_image: &nsvg::image::RgbaImage);
 }
 
 impl Draw for GameBoard {
-    fn drawBoard(&self, gl: &gl::Gl, shader_program: &render_gl::Program) {
+    fn draw_board(&self, gl: &gl::Gl, shader_program: &render_gl::Program) {
         for x in 0..game_constants::MAX_BOARD_WIDTH {
             for y in 0..game_constants::MAX_BOARD_HEIGHT {
                 let position = GameBoardSpacePos {x_pos: x as u8, y_pos: y as u8};
-                let space_type = self.getBoardSpaceType(position);
+                let space_type = self.get_board_space_type(position);
                 draw_game_board_space(&gl, &shader_program, space_type, position);
             }
         }
     }
 
-    fn drawBorder(gl: &gl::Gl, shader_program: &render_gl::Program) {
+    fn draw_border(gl: &gl::Gl, shader_program: &render_gl::Program) {
         drawing::draw_rectangle_outline(
             &gl,
             &shader_program,
@@ -110,7 +109,7 @@ impl Draw for GameBoard {
             3.0);
     }
 
-    fn drawCities(&self, gl: &gl::Gl, shader_program: &render_gl::Program, drawable_size: (u32, u32), city_image: &nsvg::image::RgbaImage, knight_image: &nsvg::image::RgbaImage) {
+    fn draw_cities(&self, gl: &gl::Gl, shader_program: &render_gl::Program, drawable_size: (u32, u32), city_image: &nsvg::image::RgbaImage, knight_image: &nsvg::image::RgbaImage) {
         for city in self.cities() {
             let (x_scale, y_scale) = scaling_for_board(drawable_size);
             let drawing_pos = game_board_pos_to_drawing_pos(city.position);
