@@ -50,7 +50,7 @@ use gameboard::gameboard_drawing::{draw_game_board_space,drawing_constants,highl
 use std::path::Path;
 
 #[derive(Clone,PartialEq)]
-enum PlayerColor
+pub enum PlayerColor
 {
     Red,
     Blue,
@@ -68,31 +68,24 @@ enum GameStage
 }
 
 
-struct CityInfo {
-    position: GameBoardSpacePos,
-    owner: PlayerColor
-}
-
 
 // UI data, for now, will be constructed in the main function, and passed by reference where needed.
 struct GameUIData {
-    board_state: [[GameBoardSpaceType; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT],
+    game_board: gameboard::gameboard::GameBoard,
     unplaced_board_pieces: std::vec::Vec<BoardPiece>,
     game_stage: GameStage,
     pos_under_mouse_for_board_setup: Option<(GameBoardSpacePos, GameBoardSpacePos, GameBoardSpacePos)>,
     pos_under_mouse_for_city_setup: Option<GameBoardSpacePos>,
-    cities: std::vec::Vec<CityInfo>
 }
 
 impl GameUIData {
     fn defaults() -> GameUIData {
         GameUIData {
-            board_state: [[GameBoardSpaceType::Void; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT],
+            game_board: gameboard::gameboard::GameBoard::new(),
             unplaced_board_pieces: game_constants::BOARD_PIECES.to_vec(),
             game_stage: GameStage::SetupBoard,
             pos_under_mouse_for_board_setup: None,
-            pos_under_mouse_for_city_setup: None,
-            cities: std::vec::Vec::<CityInfo>::new()
+            pos_under_mouse_for_city_setup: None
         }
     }
 }
@@ -102,7 +95,7 @@ fn drop_board_piece(game_ui_data: &mut GameUIData, drawable_size: (u32, u32), la
     let result = mouse_pos_to_board_piece_destination(last_mouse_click_pos, drawable_size);
     match result {
         Some((pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c)) => {
-            let board_state = &mut game_ui_data.board_state;
+            let board_state = &mut game_ui_data.game_board.board_state;
 
             let x_a = pos_under_mouse_a.x_pos as usize;
             let y_a = pos_under_mouse_a.y_pos as usize;
@@ -147,7 +140,7 @@ fn drop_board_piece(game_ui_data: &mut GameUIData, drawable_size: (u32, u32), la
 fn draw_game_board(gl: &gl::Gl, shader_program: &render_gl::Program, game_ui_data: &GameUIData) {
     for x in 0..game_constants::MAX_BOARD_WIDTH {
         for y in 0..game_constants::MAX_BOARD_HEIGHT {
-            draw_game_board_space(&gl, &shader_program, game_ui_data.board_state[y][x], GameBoardSpacePos {x_pos: x as u8, y_pos: y as u8});
+            draw_game_board_space(&gl, &shader_program, game_ui_data.game_board.board_state[y][x], GameBoardSpacePos {x_pos: x as u8, y_pos: y as u8});
         }
     }
 }
@@ -156,7 +149,7 @@ fn draw_game_board(gl: &gl::Gl, shader_program: &render_gl::Program, game_ui_dat
 fn highlight_spaces_for_board_setup(gl: &gl::Gl, shader_program: &render_gl::Program, game_ui_data: &GameUIData) {
     match game_ui_data.pos_under_mouse_for_board_setup {
         Some((pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c)) => {
-            let board_state = &game_ui_data.board_state;
+            let board_state = &game_ui_data.game_board.board_state;
 
             let x_a = pos_under_mouse_a.x_pos as usize;
             let y_a = pos_under_mouse_a.y_pos as usize;
@@ -174,7 +167,7 @@ fn highlight_spaces_for_board_setup(gl: &gl::Gl, shader_program: &render_gl::Pro
 
 
 fn space_ok_for_city(game_ui_data: &GameUIData, position: GameBoardSpacePos) -> bool {
-    let board_state = &game_ui_data.board_state;
+    let board_state = &game_ui_data.game_board.board_state;
 
     let x = position.x_pos as usize;
     let y = position.y_pos as usize;
@@ -184,14 +177,14 @@ fn space_ok_for_city(game_ui_data: &GameUIData, position: GameBoardSpacePos) -> 
             false
         }
         _ => {
-            for city in game_ui_data.cities.iter() {
+            for city in game_ui_data.game_board.cities.iter() {
                 if city.position == position {
                     return false;
                 }
             }
             let neighbor_positions = [position.up(), position.down(), position.up_right(), position.up_left(), position.down_right(), position.down_left()];
             for position in &neighbor_positions {
-                for city in game_ui_data.cities.iter() {
+                for city in game_ui_data.game_board.cities.iter() {
                     if position.is_some() && city.position == position.unwrap() {
                         return false;
                     }
@@ -208,7 +201,7 @@ fn highlight_space_for_city_setup(gl: &gl::Gl, shader_program: &render_gl::Progr
 
     match game_ui_data.pos_under_mouse_for_city_setup {
         Some(pos_under_mouse) => {
-            let board_state = &game_ui_data.board_state;
+            let board_state = &game_ui_data.game_board.board_state;
 
             let x = pos_under_mouse.x_pos as usize;
             let y = pos_under_mouse.y_pos as usize;
@@ -529,12 +522,12 @@ fn main() {
                         Some(pos_under_mouse) => {
                             let x = pos_under_mouse.x_pos as usize;
                             let y = pos_under_mouse.y_pos as usize;
-                            match game_ui_data.board_state[y][x] {
+                            match game_ui_data.game_board.board_state[y][x] {
                                 GameBoardSpaceType::Void => {}
                                 _ => {
                                     if space_ok_for_city(&game_ui_data, pos_under_mouse) {
-                                        game_ui_data.cities.push(CityInfo{ position: pos_under_mouse, owner: player_color.clone() });
-                                        if game_ui_data.cities.len() >= 3 {
+                                        game_ui_data.game_board.cities.push(gameboard::gameboard::CityInfo{ position: pos_under_mouse, owner: player_color.clone() });
+                                        if game_ui_data.game_board.cities.len() >= 3 {
                                             game_ui_data.game_stage = GameStage::Play;
                                         }
                                     }
@@ -566,10 +559,9 @@ fn main() {
             match last_key_pressed_scancode.unwrap() {
                 F2 => {
                     // Reset board
-                    game_ui_data.board_state = [[GameBoardSpaceType::Void; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT];
+                    game_ui_data.game_board = gameboard::gameboard::GameBoard::new();
                     game_ui_data.unplaced_board_pieces = game_constants::BOARD_PIECES.to_vec();
                     game_ui_data.game_stage = GameStage::SetupBoard;
-                    game_ui_data.cities = std::vec::Vec::<CityInfo>::new();
                 }
                 _ => {}
             }
@@ -685,7 +677,7 @@ fn main() {
         }
 
         // Draw cities
-        for city in &game_ui_data.cities {
+        for city in &game_ui_data.game_board.cities {
             let (x_scale, y_scale) = scaling_for_board((window_width, window_height));
             let drawing_pos = game_board_pos_to_drawing_pos((&city).position);
             {

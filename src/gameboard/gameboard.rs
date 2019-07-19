@@ -1,6 +1,7 @@
 
 use drawing;
 use drawing_constants;
+use PlayerColor;
 
 #[derive(Copy,Clone,PartialEq)]
 pub enum GameBoardSpaceType
@@ -177,4 +178,24 @@ pub mod game_constants {
 
     pub const MAX_BOARD_HEIGHT: usize = 7;
     pub const MAX_BOARD_WIDTH: usize = 13;
+}
+
+
+pub struct CityInfo {
+    pub position: GameBoardSpacePos,
+    pub owner: PlayerColor
+}
+
+pub struct GameBoard {
+    pub board_state: [[GameBoardSpaceType; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT],
+    pub cities: std::vec::Vec<CityInfo>
+}
+
+impl GameBoard {
+    pub fn new() -> GameBoard {
+        GameBoard {
+            board_state: [[GameBoardSpaceType::Void; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT],
+            cities: std::vec::Vec::<CityInfo>::new()
+        }
+    }
 }
