@@ -47,7 +47,7 @@ use mouse_position::{MousePos, mouse_pos_to_game_board_pos, mouse_pos_to_board_p
 use rand::Rng;
 use resources::Resources;
 use gameboard::gameboard::{BoardPiece,GameBoardSpaceType,GameBoardSpacePos,game_constants};
-use gameboard::gameboard_drawing::{drawing_constants,highlight_space_for_board_setup,highlight_space_for_city_setup,scaling_for_board,Draw};
+use gameboard::gameboard_drawing::{drawing_constants,highlight_space_for_board_setup,highlight_space_for_city_setup,highlight_spaces_for_board_setup,scaling_for_board,Draw};
 use std::path::Path;
 
 #[derive(Clone,PartialEq)]
@@ -139,22 +139,6 @@ impl GameUIData {
                 }
             }
         }
-    }
-}
-
-
-fn highlight_spaces_for_board_setup(gl: &gl::Gl, shader_program: &render_gl::Program, game_ui_data: &GameUIData) {
-    match game_ui_data.pos_under_mouse_for_board_setup {
-        Some((pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c)) => {
-            let space_type_a = game_ui_data.game_board.get_board_space_type(pos_under_mouse_a);
-            let space_type_b = game_ui_data.game_board.get_board_space_type(pos_under_mouse_b);
-            let space_type_c = game_ui_data.game_board.get_board_space_type(pos_under_mouse_c);
-
-            highlight_space_for_board_setup(&gl, &shader_program, space_type_a, pos_under_mouse_a);
-            highlight_space_for_board_setup(&gl, &shader_program, space_type_b, pos_under_mouse_b);
-            highlight_space_for_board_setup(&gl, &shader_program, space_type_c, pos_under_mouse_c);
-        }
-        None => {}
     }
 }
 
@@ -460,7 +444,12 @@ fn main() {
 
         match game_ui_data.game_stage {
             GameStage::SetupBoard => {
-                highlight_spaces_for_board_setup(&gl, &shader_program, &game_ui_data);
+                match game_ui_data.pos_under_mouse_for_board_setup {
+                    Some((pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c)) => {
+                        highlight_spaces_for_board_setup(&gl, &shader_program, (pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c), &game_ui_data.game_board);
+                    }
+                    None => {}
+                }
             }
             GameStage::SetupCities => {
                 match game_ui_data.pos_under_mouse_for_city_setup {

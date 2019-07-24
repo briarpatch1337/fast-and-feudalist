@@ -205,3 +205,14 @@ pub fn highlight_space_for_city_setup(
         }
     }
 }
+
+pub fn highlight_spaces_for_board_setup(gl: &gl::Gl, shader_program: &render_gl::Program, positions: (GameBoardSpacePos, GameBoardSpacePos, GameBoardSpacePos), game_board: &GameBoard) {
+    let (pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c) = positions;
+    let space_type_a = game_board.get_board_space_type(pos_under_mouse_a);
+    let space_type_b = game_board.get_board_space_type(pos_under_mouse_b);
+    let space_type_c = game_board.get_board_space_type(pos_under_mouse_c);
+
+    highlight_space_for_board_setup(&gl, &shader_program, space_type_a, pos_under_mouse_a);
+    highlight_space_for_board_setup(&gl, &shader_program, space_type_b, pos_under_mouse_b);
+    highlight_space_for_board_setup(&gl, &shader_program, space_type_c, pos_under_mouse_c);
+}
