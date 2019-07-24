@@ -45,7 +45,7 @@ pub mod mouse_position;
 use colors::Color;
 use mouse_position::{MousePos, mouse_pos_to_game_board_pos, mouse_pos_to_board_piece_destination};
 use rand::Rng;
-use filereader::Resources;
+use filereader::FileReader;
 use gameboard::gameboard::{BoardPiece,GameBoard,GameBoardSpaceType,GameBoardSpacePos,game_constants};
 use gameboard::gameboard_drawing::{drawing_constants,highlight_space_for_city_setup,highlight_spaces_for_board_setup,scaling_for_board,Draw};
 use std::path::Path;
@@ -148,8 +148,8 @@ impl GameUIData {
 //
 
 fn main() {
-    // our game resources object
-    let res = Resources::from_relative_exe_path(Path::new("assets")).unwrap();
+    // file reader object for loading GLSL shader program source files
+    let filereader = FileReader::from_relative_exe_path(Path::new("assets")).unwrap();
 
     // SDL_Init
     // Use this function to initialize the SDL library. This must be called before using most other SDL functions.
@@ -336,9 +336,9 @@ fn main() {
 
     // render_gl is a different module in this project with helper functions.  See render_gl.rs .
     // Compile and link a program with shaders that match this file name
-    let shader_program = render_gl::Program::from_res(&gl, &res, "shaders/basic").unwrap();
-    let text_program = render_gl::Program::from_res(&gl, &res, "shaders/text").unwrap();
-    let image_program = render_gl::Program::from_res(&gl, &res, "shaders/image").unwrap();
+    let shader_program = render_gl::Program::from_file(&gl, &filereader, "shaders/basic").unwrap();
+    let text_program = render_gl::Program::from_file(&gl, &filereader, "shaders/text").unwrap();
+    let image_program = render_gl::Program::from_file(&gl, &filereader, "shaders/image").unwrap();
     drawing::write_scale_data(&gl, &shader_program, aspect_ratio);
     drawing::write_rotate_data(&gl, &shader_program, 0.0);
 

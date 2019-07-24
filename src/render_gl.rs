@@ -1,7 +1,7 @@
 use gl;
 use std;
 use std::ffi::{CString, CStr};
-use filereader::{self, Resources};
+use filereader::{self, FileReader};
 
 #[derive(Debug)]
 pub enum Error {
@@ -17,7 +17,7 @@ pub struct Program {
 }
 
 impl Program {
-    pub fn from_res(gl: &gl::Gl, res: &Resources, name: &str) -> Result<Program, Error> {
+    pub fn from_file(gl: &gl::Gl, filereader: &FileReader, name: &str) -> Result<Program, Error> {
         const POSSIBLE_EXT: [&str; 2] = [
             ".vert",
             ".frag",
@@ -25,7 +25,7 @@ impl Program {
 
         let shaders = POSSIBLE_EXT.iter()
             .map(|file_extension| {
-                Shader::from_res(gl, res, &format!("{}{}", name, file_extension))
+                Shader::from_file(gl, filereader, &format!("{}{}", name, file_extension))
             })
             .collect::<Result<Vec<Shader>, Error>>()?;
 
@@ -109,7 +109,7 @@ pub struct Shader {
 }
 
 impl Shader {
-    pub fn from_res(gl: &gl::Gl, res: &Resources, name: &str) -> Result<Shader, Error> {
+    pub fn from_file(gl: &gl::Gl, filereader: &FileReader, name: &str) -> Result<Shader, Error> {
         const POSSIBLE_EXT: [(&str, gl::types::GLenum); 2] = [
         (".vert", gl::VERTEX_SHADER),
         (".frag", gl::FRAGMENT_SHADER),
@@ -122,7 +122,7 @@ impl Shader {
         .map(|&(_, kind)| kind)
         .ok_or_else(|| Error::CanNotDetermineShaderTypeForResource { name: name.into() })?;
 
-    let source = res.load_cstring(name).map_err(|e| Error::ResourceLoad {
+    let source = filereader.load_cstring(name).map_err(|e| Error::ResourceLoad {
         name: name.into(),
         inner:e
     })?;

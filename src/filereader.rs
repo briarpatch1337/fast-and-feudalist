@@ -16,17 +16,17 @@ impl From<io::Error> for Error {
     }
 }
 
-pub struct Resources {
+pub struct FileReader {
     root_path: PathBuf,
 }
 
-impl Resources {
-    pub fn from_relative_exe_path(rel_path: &Path) -> Result<Resources, Error> {
+impl FileReader {
+    pub fn from_relative_exe_path(rel_path: &Path) -> Result<FileReader, Error> {
         let exe_file_name = ::std::env::current_exe()
         .map_err(|_| Error::FailedToGetExePath)?;
         let exe_path = exe_file_name.parent()
             .ok_or(Error::FailedToGetExePath)?;
-        Ok(Resources {
+        Ok(FileReader {
             root_path: exe_path.join(rel_path)
         })
     }
