@@ -142,6 +142,152 @@ impl GameUIData {
     }
 }
 
+// NOTE: Prefixing these fields with an underscore is necessary to avoid an unused variable warning.
+struct HardwareResources
+{
+    sdl: sdl2::Sdl,
+    _video_subsystem: sdl2::VideoSubsystem,
+    window: sdl2::video::Window,
+    drawable_size: (u32, u32),
+    display_dpi: (f32, f32, f32),
+    _gl_context: sdl2::video::GLContext,
+    gl: gl::Gl,
+    timer_subsystem: sdl2::TimerSubsystem,
+    _audio_subsystem: sdl2::AudioSubsystem
+}
+
+impl HardwareResources {
+    fn init() -> HardwareResources {
+        // SDL_Init
+        // Use this function to initialize the SDL library. This must be called before using most other SDL functions.
+        // The return type of init() is Result<Sdl, String>
+        // We call unwrap() on the Result.  This checks for errors and will terminate the program and
+        // print the "String" part of the result if there was an error.  On success, the "Sdl" struct is returned.
+
+        let sdl = sdl2::init().unwrap();
+
+        // SDL_VideoInit
+        // Initializes the video subsystem of SDL
+
+        let video_subsystem = sdl.video().unwrap();
+
+        {
+            // SDL_GL_SetAttribute
+            // Obtains access to the OpenGL window attributes.
+
+            let gl_attr = video_subsystem.gl_attr();
+
+            // Set OpenGL Profile and Version.  This will help ensure that libraries that implement future versions of
+            // the OpenGL standard will still always work with this code.
+
+            // SDL_GL_CONTEXT_PROFILE_MASK
+            gl_attr.set_context_profile(sdl2::video::GLProfile::Core);
+
+            // SDL_GL_CONTEXT_MAJOR_VERSION, SDL_GL_CONTEXT_MINOR_VERSION
+            gl_attr.set_context_version(4, 5);
+        }
+
+        // Initializes a new WindowBuilder, sets the window to be usable with an OpenGL context,
+        // sets the window to be fullscreen at 1080 HD, builds the window, and checks for errors.
+        // The Window allows you to get and set many of the SDL_Window properties (i.e., border, size, PixelFormat, etc)
+        // However, you cannot directly access the pixels of the Window without a context.
+
+        let window = video_subsystem
+            .window("Game", 1920, 1080)
+            .opengl()
+            .fullscreen()
+            .build()
+            .unwrap();
+
+        let (window_width, window_height) = window.drawable_size();
+        let (ddpi, hdpi, vdpi) = video_subsystem.display_dpi(0).unwrap();
+
+        // SDL_GL_CreateContext
+        // Creates an OpenGL context for use with an OpenGL window, and makes it the current context.
+
+        let gl_context = window.gl_create_context().unwrap();
+
+        // Load the OpenGL function pointers from SDL.
+
+        let gl = {
+            // Use a closure (lambda function), to add a cast to a C-style void pointer (which must be the return type of the function passed to load_with)
+            let gl_get_proc_address_function = |procname| {
+                video_subsystem.gl_get_proc_address(procname) as *const std::os::raw::c_void
+            };
+            gl::Gl::load_with(gl_get_proc_address_function)
+        };
+
+        unsafe {
+            // glViewport
+            // We have to tell OpenGL the size of the rendering window so OpenGL knows how we want to display the data and coordinates with respect to the window.
+            // The first two parameters of glViewport set the location of the lower left corner of the window.
+            // The third and fourth parameter set the width and height of the rendering window in pixels, which we set equal to SDL's window size.
+            // We could actually set the viewport dimensions at values smaller than GLFW's dimensions;
+            // then all the OpenGL rendering would be displayed in a smaller window and we could for example display other elements outside the OpenGL viewport.
+            // The moment a user resizes the window the viewport should be adjusted as well.
+
+            gl.Viewport(0, 0, window_width as i32, window_height as i32); // set viewport
+
+            // glClearColor
+            // Whenever we call glClear and clear the color buffer, the entire color buffer will be filled with the color as configured by glClearColor.
+
+            gl.ClearColor(0.0, 0.0, 0.0, 1.0); // black, fully opaque
+
+            gl.Enable(gl::BLEND);
+            gl.BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+        }
+
+        // SDL_GetTicks
+        let timer_subsystem = sdl.timer().unwrap();
+
+        struct AudioEngine {
+            sample_number: u128
+        }
+
+        impl sdl2::audio::AudioCallback for AudioEngine {
+            type Channel = f32;
+
+            fn callback(&mut self, out: &mut [f32]) {
+                for x in out.iter_mut() {
+                    // This is where audio output will go.
+                    *x = 0.0;
+                    self.sample_number = self.sample_number + 1;
+                }
+            }
+        }
+
+        // SDL_AudioInit
+        let audio_subsystem = sdl.audio().unwrap();
+        let desired_spec = sdl2::audio::AudioSpecDesired {
+            freq: Some(44100),
+            channels: Some(1), //mono
+            samples: None // device default sample buffer size
+        };
+
+        let audio_device = audio_subsystem.open_playback(None, &desired_spec, |_spec| {
+            AudioEngine {
+                sample_number: 0
+            }
+        }).unwrap();
+
+        println!("Audio device buffer size: {} samples", audio_device.spec().samples);
+
+        audio_device.resume();
+
+        HardwareResources {
+            sdl: sdl,
+            _video_subsystem: video_subsystem,
+            window: window,
+            drawable_size: (window_width, window_height),
+            display_dpi: (ddpi, hdpi, vdpi),
+            _gl_context: gl_context,
+            gl: gl,
+            timer_subsystem: timer_subsystem,
+            _audio_subsystem: audio_subsystem
+        }
+    }
+}
+
 
 //
 // Main function
@@ -151,119 +297,7 @@ fn main() {
     // file reader object for loading GLSL shader program source files
     let filereader = FileReader::from_relative_exe_path(Path::new("assets")).unwrap();
 
-    // SDL_Init
-    // Use this function to initialize the SDL library. This must be called before using most other SDL functions.
-    // The return type of init() is Result<Sdl, String>
-    // We call unwrap() on the Result.  This checks for errors and will terminate the program and
-    // print the "String" part of the result if there was an error.  On success, the "Sdl" struct is returned.
-
-    let sdl = sdl2::init().unwrap();
-
-    // SDL_VideoInit
-    // Initializes the video subsystem of SDL
-
-    let video_subsystem = sdl.video().unwrap();
-
-    // SDL_GL_SetAttribute
-    // Obtains access to the OpenGL window attributes.
-
-    let gl_attr = video_subsystem.gl_attr();
-
-    // Set OpenGL Profile and Version.  This will help ensure that libraries that implement future versions of
-    // the OpenGL standard will still always work with this code.
-
-    // SDL_GL_CONTEXT_PROFILE_MASK
-    gl_attr.set_context_profile(sdl2::video::GLProfile::Core);
-
-    // SDL_GL_CONTEXT_MAJOR_VERSION, SDL_GL_CONTEXT_MINOR_VERSION
-    gl_attr.set_context_version(4, 5);
-
-    // Initializes a new WindowBuilder, sets the window to be usable with an OpenGL context,
-    // sets the window to be fullscreen at 1080 HD, builds the window, and checks for errors.
-    // The Window allows you to get and set many of the SDL_Window properties (i.e., border, size, PixelFormat, etc)
-    // However, you cannot directly access the pixels of the Window without a context.
-
-    let window = video_subsystem
-        .window("Game", 1920, 1080)
-        .opengl()
-        .fullscreen()
-        .build()
-        .unwrap();
-
-    let (window_width, window_height) = window.drawable_size();
-    let (ddpi, hdpi, vdpi) = video_subsystem.display_dpi(0).unwrap();
-    let aspect_ratio = window_width as f32 / window_height as f32;
-
-    // SDL_GL_CreateContext
-    // Creates an OpenGL context for use with an OpenGL window, and makes it the current context.
-
-    // NOTE: Prefixing this variable with an underscore is necessary to avoid an unused variable warning.
-
-    let _gl_context = window.gl_create_context().unwrap();
-
-    // Load the OpenGL function pointers from SDL.
-    // Use a closure (lambda function), to add a cast to a C-style void pointer (which must be the return type of the function passed to load_with)
-    let gl_get_proc_address_function = |procname| {
-        video_subsystem.gl_get_proc_address(procname) as *const std::os::raw::c_void
-    };
-    let gl = gl::Gl::load_with(gl_get_proc_address_function);
-
-    unsafe {
-        // glViewport
-        // We have to tell OpenGL the size of the rendering window so OpenGL knows how we want to display the data and coordinates with respect to the window.
-        // The first two parameters of glViewport set the location of the lower left corner of the window.
-        // The third and fourth parameter set the width and height of the rendering window in pixels, which we set equal to SDL's window size.
-        // We could actually set the viewport dimensions at values smaller than GLFW's dimensions;
-        // then all the OpenGL rendering would be displayed in a smaller window and we could for example display other elements outside the OpenGL viewport.
-        // The moment a user resizes the window the viewport should be adjusted as well.
-
-        gl.Viewport(0, 0, window_width as i32, window_height as i32); // set viewport
-
-        // glClearColor
-        // Whenever we call glClear and clear the color buffer, the entire color buffer will be filled with the color as configured by glClearColor.
-
-        gl.ClearColor(0.0, 0.0, 0.0, 1.0); // black, fully opaque
-
-        gl.Enable(gl::BLEND);
-        gl.BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
-    }
-
-    // SDL_GetTicks
-    let mut timer_subsystem = sdl.timer().unwrap();
-
-    struct AudioEngine {
-        sample_number: u128
-    }
-
-    impl sdl2::audio::AudioCallback for AudioEngine {
-        type Channel = f32;
-
-        fn callback(&mut self, out: &mut [f32]) {
-            for x in out.iter_mut() {
-                // This is where audio output will go.
-                *x = 0.0;
-                self.sample_number = self.sample_number + 1;
-            }
-        }
-    }
-
-    // SDL_AudioInit
-    let audio_subsystem = sdl.audio().unwrap();
-    let desired_spec = sdl2::audio::AudioSpecDesired {
-        freq: Some(44100),
-        channels: Some(1), //mono
-        samples: None // device default sample buffer size
-    };
-
-    let audio_device = audio_subsystem.open_playback(None, &desired_spec, |_spec| {
-        AudioEngine {
-            sample_number: 0
-        }
-    }).unwrap();
-
-    println!("Audio device buffer size: {} samples", audio_device.spec().samples);
-
-    audio_device.resume();
+    let mut hw = HardwareResources::init();
 
     // Fonts
     let mut font_resources = fonts::FontResources::new();
@@ -273,6 +307,10 @@ fn main() {
     //let player_color = PlayerColor::Green;
     //let player_color = PlayerColor::Yellow;
     let player_color_spec = player_color.color();
+
+    let (window_width, window_height) = hw.drawable_size;
+    let (ddpi, hdpi, vdpi) = hw.display_dpi;
+    let aspect_ratio = window_width as f32 / window_height as f32;
 
     // SVG images
     let mut city_image = {
@@ -332,15 +370,15 @@ fn main() {
     // Obtains the SDL event pump.
     // At most one EventPump is allowed to be alive during the program's execution. If this function is called while an EventPump instance is alive, the function will return an error.
 
-    let mut event_pump = sdl.event_pump().unwrap();
+    let mut event_pump = hw.sdl.event_pump().unwrap();
 
     // render_gl is a different module in this project with helper functions.  See render_gl.rs .
     // Compile and link a program with shaders that match this file name
-    let shader_program = render_gl::Program::from_file(&gl, &filereader, "shaders/basic").unwrap();
-    let text_program = render_gl::Program::from_file(&gl, &filereader, "shaders/text").unwrap();
-    let image_program = render_gl::Program::from_file(&gl, &filereader, "shaders/image").unwrap();
-    drawing::write_scale_data(&gl, &shader_program, aspect_ratio);
-    drawing::write_rotate_data(&gl, &shader_program, 0.0);
+    let shader_program = render_gl::Program::from_file(&hw.gl, &filereader, "shaders/basic").unwrap();
+    let text_program = render_gl::Program::from_file(&hw.gl, &filereader, "shaders/text").unwrap();
+    let image_program = render_gl::Program::from_file(&hw.gl, &filereader, "shaders/image").unwrap();
+    drawing::write_scale_data(&hw.gl, &shader_program, aspect_ratio);
+    drawing::write_rotate_data(&hw.gl, &shader_program, 0.0);
 
     let frames_per_second = 60;
 
@@ -436,17 +474,17 @@ fn main() {
 
         // Clear the color buffer.
         unsafe {
-            gl.Clear(gl::COLOR_BUFFER_BIT);
+            hw.gl.Clear(gl::COLOR_BUFFER_BIT);
         }
 
         // Draw
-        game_ui_data.game_board.draw_board(&gl, &shader_program);
+        game_ui_data.game_board.draw_board(&hw.gl, &shader_program);
 
         match game_ui_data.game_stage {
             GameStage::SetupBoard => {
                 match game_ui_data.pos_under_mouse_for_board_setup {
                     Some((pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c)) => {
-                        highlight_spaces_for_board_setup(&gl, &shader_program, (pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c), &game_ui_data.game_board);
+                        highlight_spaces_for_board_setup(&hw.gl, &shader_program, (pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c), &game_ui_data.game_board);
                     }
                     None => {}
                 }
@@ -454,7 +492,7 @@ fn main() {
             GameStage::SetupCities => {
                 match game_ui_data.pos_under_mouse_for_city_setup {
                     Some(pos_under_mouse) => {
-                        highlight_space_for_city_setup(&gl, &shader_program, &image_program, &city_image, pos_under_mouse, &game_ui_data.game_board, (window_width, window_height));
+                        highlight_space_for_city_setup(&hw.gl, &shader_program, &image_program, &city_image, pos_under_mouse, &game_ui_data.game_board, (window_width, window_height));
                     }
                     None => {}
                 }
@@ -463,11 +501,11 @@ fn main() {
         }
 
         // Draw rectangular border around the game board area.
-        GameBoard::draw_border(&gl, &shader_program);
+        GameBoard::draw_border(&hw.gl, &shader_program);
 
         // Draw scroll image
         drawing::draw_image(
-            &gl,
+            &hw.gl,
             &image_program,
             &scroll_image,
             drawing::PositionSpec{ x: -0.99, y: 0.28 },
@@ -476,7 +514,7 @@ fn main() {
         // Draw text
         {
             let mut text_drawing_baggage = drawing::TextDrawingBaggage {
-                gl: gl.clone(),
+                gl: hw.gl.clone(),
                 shader_program: &text_program,
                 drawable_size: (window_width, window_height),
                 display_dpi: (ddpi, hdpi, vdpi),
@@ -509,28 +547,28 @@ fn main() {
                 y_scale = y_scale * drawing_constants::HEXAGON_HEIGHT * 0.5;
 
                 drawing::draw_image(
-                    &gl,
+                    &hw.gl,
                     &image_program,
                     &city_image,
                     drawing::PositionSpec{ x: -0.95, y: 0.60 },
                     drawing::SizeSpec{ x: x_scale, y: y_scale});
 
                 drawing::draw_image(
-                    &gl,
+                    &hw.gl,
                     &image_program,
                     &stronghold_image,
                     drawing::PositionSpec{ x: -0.95, y: 0.51 },
                     drawing::SizeSpec{ x: x_scale, y: y_scale});
 
                 drawing::draw_image(
-                    &gl,
+                    &hw.gl,
                     &image_program,
                     &village_image,
                     drawing::PositionSpec{ x: -0.92, y: 0.44 },
                     drawing::SizeSpec{ x: x_scale * 0.5, y: y_scale * 0.5});
 
                 drawing::draw_image(
-                    &gl,
+                    &hw.gl,
                     &image_program,
                     &knight_image,
                     drawing::PositionSpec{ x: -0.92, y: 0.36 },
@@ -543,14 +581,14 @@ fn main() {
         }
 
         // Draw cities
-        game_ui_data.game_board.draw_cities(&gl, &image_program, (window_width, window_height), &city_image, &knight_image);
+        game_ui_data.game_board.draw_cities(&hw.gl, &image_program, (window_width, window_height), &city_image, &knight_image);
 
         // Swap the window pixels with what we have just rendered
-        window.gl_swap_window();
+        hw.window.gl_swap_window();
 
 
         // Frame rate control
-        let tick_count: u32 = timer_subsystem.ticks();
+        let tick_count: u32 = hw.timer_subsystem.ticks();
         let prev_frame_count = frame_count;
         frame_count = (tick_count as f32 * frames_per_second as f32 / 1000_f32) as u32 + 1;
         frame_time = frame_count * 1000 / frames_per_second;
