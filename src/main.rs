@@ -288,6 +288,79 @@ impl HardwareResources {
     }
 }
 
+struct SVGImages {
+    city_image: nsvg::image::RgbaImage,
+    village_image: nsvg::image::RgbaImage,
+    stronghold_image: nsvg::image::RgbaImage,
+    knight_image: nsvg::image::RgbaImage,
+    scroll_image: nsvg::image::RgbaImage
+}
+
+impl SVGImages {
+    fn init(ddpi: f32, window_width: u32, player_color_spec: drawing::ColorSpec) -> SVGImages {
+        let mut city_image = {
+            let svg = nsvg::parse_file(Path::new("assets/svg/city.svg"), nsvg::Units::Pixel, ddpi).unwrap();
+            let svg_scaling = svg.width() * 2.0 / window_width as f32;
+            svg.rasterize(svg_scaling).unwrap()
+        };
+        for pixel in city_image.pixels_mut() {
+            let old_pixel = pixel.clone();
+            pixel.data = [player_color_spec.r, player_color_spec.g, player_color_spec.b, old_pixel.data[3]];
+        }
+
+        let mut village_image = {
+            let svg = nsvg::parse_file(Path::new("assets/svg/village.svg"), nsvg::Units::Pixel, ddpi).unwrap();
+            let svg_scaling = svg.width() * 2.0 / window_width as f32;
+            svg.rasterize(svg_scaling).unwrap()
+        };
+        for pixel in village_image.pixels_mut() {
+            let old_pixel = pixel.clone();
+            pixel.data = [player_color_spec.r, player_color_spec.g, player_color_spec.b, old_pixel.data[3]];
+        }
+
+        let mut stronghold_image = {
+            let svg = nsvg::parse_file(Path::new("assets/svg/stronghold.svg"), nsvg::Units::Pixel, ddpi).unwrap();
+            let svg_scaling = svg.width() * 2.0 / window_width as f32;
+            svg.rasterize(svg_scaling).unwrap()
+        };
+        for pixel in stronghold_image.pixels_mut() {
+            let old_pixel = pixel.clone();
+            pixel.data = [player_color_spec.r, player_color_spec.g, player_color_spec.b, old_pixel.data[3]];
+        }
+
+        let mut knight_image = {
+            let svg = nsvg::parse_file(Path::new("assets/svg/knight.svg"), nsvg::Units::Pixel, ddpi).unwrap();
+            let svg_scaling = svg.width() * 2.0 / window_width as f32;
+            svg.rasterize(svg_scaling).unwrap()
+        };
+        for pixel in knight_image.pixels_mut() {
+            let old_pixel = pixel.clone();
+            pixel.data = [player_color_spec.r, player_color_spec.g, player_color_spec.b, old_pixel.data[3]];
+        }
+
+        let mut scroll_image = {
+            let svg = nsvg::parse_file(Path::new("assets/svg/paper-scroll.svg"), nsvg::Units::Pixel, ddpi).unwrap();
+            let svg_scaling = svg.width() * 2.0 / window_width as f32;
+            svg.rasterize(svg_scaling).unwrap()
+        };
+        for pixel in scroll_image.pixels_mut() {
+            let old_pixel = pixel.clone();
+            pixel.data = [
+                (old_pixel.data[0] as f32 * 0.75) as u8,
+                (old_pixel.data[1] as f32 * 0.75) as u8,
+                (old_pixel.data[2] as f32 * 0.75) as u8,
+                old_pixel.data[3]];
+        }
+
+        SVGImages {
+            city_image: city_image,
+            village_image: village_image,
+            stronghold_image: stronghold_image,
+            knight_image: knight_image,
+            scroll_image: scroll_image
+        }
+    }
+}
 
 //
 // Main function
@@ -313,59 +386,7 @@ fn main() {
     let aspect_ratio = window_width as f32 / window_height as f32;
 
     // SVG images
-    let mut city_image = {
-        let svg = nsvg::parse_file(Path::new("assets/svg/city.svg"), nsvg::Units::Pixel, ddpi).unwrap();
-        let svg_scaling = svg.width() * 2.0 / window_width as f32;
-        svg.rasterize(svg_scaling).unwrap()
-    };
-    for pixel in city_image.pixels_mut() {
-        let old_pixel = pixel.clone();
-        pixel.data = [player_color_spec.r, player_color_spec.g, player_color_spec.b, old_pixel.data[3]];
-    }
-
-    let mut village_image = {
-        let svg = nsvg::parse_file(Path::new("assets/svg/village.svg"), nsvg::Units::Pixel, ddpi).unwrap();
-        let svg_scaling = svg.width() * 2.0 / window_width as f32;
-        svg.rasterize(svg_scaling).unwrap()
-    };
-    for pixel in village_image.pixels_mut() {
-        let old_pixel = pixel.clone();
-        pixel.data = [player_color_spec.r, player_color_spec.g, player_color_spec.b, old_pixel.data[3]];
-    }
-
-    let mut stronghold_image = {
-        let svg = nsvg::parse_file(Path::new("assets/svg/stronghold.svg"), nsvg::Units::Pixel, ddpi).unwrap();
-        let svg_scaling = svg.width() * 2.0 / window_width as f32;
-        svg.rasterize(svg_scaling).unwrap()
-    };
-    for pixel in stronghold_image.pixels_mut() {
-        let old_pixel = pixel.clone();
-        pixel.data = [player_color_spec.r, player_color_spec.g, player_color_spec.b, old_pixel.data[3]];
-    }
-
-    let mut knight_image = {
-        let svg = nsvg::parse_file(Path::new("assets/svg/knight.svg"), nsvg::Units::Pixel, ddpi).unwrap();
-        let svg_scaling = svg.width() * 2.0 / window_width as f32;
-        svg.rasterize(svg_scaling).unwrap()
-    };
-    for pixel in knight_image.pixels_mut() {
-        let old_pixel = pixel.clone();
-        pixel.data = [player_color_spec.r, player_color_spec.g, player_color_spec.b, old_pixel.data[3]];
-    }
-
-    let mut scroll_image = {
-        let svg = nsvg::parse_file(Path::new("assets/svg/paper-scroll.svg"), nsvg::Units::Pixel, ddpi).unwrap();
-        let svg_scaling = svg.width() * 2.0 / window_width as f32;
-        svg.rasterize(svg_scaling).unwrap()
-    };
-    for pixel in scroll_image.pixels_mut() {
-        let old_pixel = pixel.clone();
-        pixel.data = [
-            (old_pixel.data[0] as f32 * 0.75) as u8,
-            (old_pixel.data[1] as f32 * 0.75) as u8,
-            (old_pixel.data[2] as f32 * 0.75) as u8,
-            old_pixel.data[3]];
-    }
+    let svg_images = SVGImages::init(ddpi, window_width, player_color_spec.clone());
 
     // Obtains the SDL event pump.
     // At most one EventPump is allowed to be alive during the program's execution. If this function is called while an EventPump instance is alive, the function will return an error.
@@ -484,7 +505,11 @@ fn main() {
             GameStage::SetupBoard => {
                 match game_ui_data.pos_under_mouse_for_board_setup {
                     Some((pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c)) => {
-                        highlight_spaces_for_board_setup(&hw.gl, &shader_program, (pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c), &game_ui_data.game_board);
+                        highlight_spaces_for_board_setup(
+                            &hw.gl,
+                            &shader_program,
+                            (pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c),
+                            &game_ui_data.game_board);
                     }
                     None => {}
                 }
@@ -492,7 +517,14 @@ fn main() {
             GameStage::SetupCities => {
                 match game_ui_data.pos_under_mouse_for_city_setup {
                     Some(pos_under_mouse) => {
-                        highlight_space_for_city_setup(&hw.gl, &shader_program, &image_program, &city_image, pos_under_mouse, &game_ui_data.game_board, (window_width, window_height));
+                        highlight_space_for_city_setup(
+                            &hw.gl,
+                            &shader_program,
+                            &image_program,
+                            &svg_images.city_image,
+                            pos_under_mouse,
+                            &game_ui_data.game_board,
+                            (window_width, window_height));
                     }
                     None => {}
                 }
@@ -507,7 +539,7 @@ fn main() {
         drawing::draw_image(
             &hw.gl,
             &image_program,
-            &scroll_image,
+            &svg_images.scroll_image,
             drawing::PositionSpec{ x: -0.99, y: 0.28 },
             drawing::SizeSpec{ x: 0.18, y: 0.45 });
 
@@ -549,28 +581,28 @@ fn main() {
                 drawing::draw_image(
                     &hw.gl,
                     &image_program,
-                    &city_image,
+                    &svg_images.city_image,
                     drawing::PositionSpec{ x: -0.95, y: 0.60 },
                     drawing::SizeSpec{ x: x_scale, y: y_scale});
 
                 drawing::draw_image(
                     &hw.gl,
                     &image_program,
-                    &stronghold_image,
+                    &svg_images.stronghold_image,
                     drawing::PositionSpec{ x: -0.95, y: 0.51 },
                     drawing::SizeSpec{ x: x_scale, y: y_scale});
 
                 drawing::draw_image(
                     &hw.gl,
                     &image_program,
-                    &village_image,
+                    &svg_images.village_image,
                     drawing::PositionSpec{ x: -0.92, y: 0.44 },
                     drawing::SizeSpec{ x: x_scale * 0.5, y: y_scale * 0.5});
 
                 drawing::draw_image(
                     &hw.gl,
                     &image_program,
-                    &knight_image,
+                    &svg_images.knight_image,
                     drawing::PositionSpec{ x: -0.92, y: 0.36 },
                     drawing::SizeSpec{ x: x_scale * 0.5, y: y_scale * 0.5});
             }
@@ -581,7 +613,7 @@ fn main() {
         }
 
         // Draw cities
-        game_ui_data.game_board.draw_cities(&hw.gl, &image_program, (window_width, window_height), &city_image, &knight_image);
+        game_ui_data.game_board.draw_cities(&hw.gl, &image_program, (window_width, window_height), &svg_images.city_image, &svg_images.knight_image);
 
         // Swap the window pixels with what we have just rendered
         hw.window.gl_swap_window();
