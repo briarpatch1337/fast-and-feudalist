@@ -46,8 +46,8 @@ use colors::Color;
 use mouse_position::{MousePos, mouse_pos_to_game_board_pos, mouse_pos_to_board_piece_destination};
 use rand::Rng;
 use resources::Resources;
-use gameboard::gameboard::{BoardPiece,GameBoardSpaceType,GameBoardSpacePos,game_constants};
-use gameboard::gameboard_drawing::{drawing_constants,highlight_space_for_board_setup,highlight_space_for_city_setup,highlight_spaces_for_board_setup,scaling_for_board,Draw};
+use gameboard::gameboard::{BoardPiece,GameBoard,GameBoardSpaceType,GameBoardSpacePos,game_constants};
+use gameboard::gameboard_drawing::{drawing_constants,highlight_space_for_city_setup,highlight_spaces_for_board_setup,scaling_for_board,Draw};
 use std::path::Path;
 
 #[derive(Clone,PartialEq)]
@@ -71,7 +71,7 @@ enum GameStage
 
 // UI data, for now, will be constructed in the main function, and passed by reference where needed.
 struct GameUIData {
-    game_board: gameboard::gameboard::GameBoard,
+    game_board: GameBoard,
     unplaced_board_pieces: std::vec::Vec<BoardPiece>,
     game_stage: GameStage,
     pos_under_mouse_for_board_setup: Option<(GameBoardSpacePos, GameBoardSpacePos, GameBoardSpacePos)>,
@@ -81,7 +81,7 @@ struct GameUIData {
 impl GameUIData {
     fn defaults() -> GameUIData {
         GameUIData {
-            game_board: gameboard::gameboard::GameBoard::new(),
+            game_board: GameBoard::new(),
             unplaced_board_pieces: game_constants::BOARD_PIECES.to_vec(),
             game_stage: GameStage::SetupBoard,
             pos_under_mouse_for_board_setup: None,
@@ -426,7 +426,7 @@ fn main() {
             match last_key_pressed_scancode.unwrap() {
                 F2 => {
                     // Reset board
-                    game_ui_data.game_board = gameboard::gameboard::GameBoard::new();
+                    game_ui_data.game_board = GameBoard::new();
                     game_ui_data.unplaced_board_pieces = game_constants::BOARD_PIECES.to_vec();
                     game_ui_data.game_stage = GameStage::SetupBoard;
                 }
@@ -463,7 +463,7 @@ fn main() {
         }
 
         // Draw rectangular border around the game board area.
-        gameboard::gameboard::GameBoard::draw_border(&gl, &shader_program);
+        GameBoard::draw_border(&gl, &shader_program);
 
         // Draw scroll image
         drawing::draw_image(
