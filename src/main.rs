@@ -32,8 +32,8 @@ extern { }
 // This tells the Rust compiler to compile render_gl.rs.  This module has some of the helper functions for rendering our game.
 pub mod render_gl;
 
-// Also there's resources.rs
-pub mod resources;
+// Also there's filereader.rs
+pub mod filereader;
 
 // And some more
 pub mod drawing;
@@ -45,7 +45,7 @@ pub mod mouse_position;
 use colors::Color;
 use mouse_position::{MousePos, mouse_pos_to_game_board_pos, mouse_pos_to_board_piece_destination};
 use rand::Rng;
-use resources::Resources;
+use filereader::Resources;
 use gameboard::gameboard::{BoardPiece,GameBoard,GameBoardSpaceType,GameBoardSpacePos,game_constants};
 use gameboard::gameboard_drawing::{drawing_constants,highlight_space_for_city_setup,highlight_spaces_for_board_setup,scaling_for_board,Draw};
 use std::path::Path;

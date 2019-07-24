@@ -1,11 +1,11 @@
 use gl;
 use std;
 use std::ffi::{CString, CStr};
-use resources::{self, Resources};
+use filereader::{self, Resources};
 
 #[derive(Debug)]
 pub enum Error {
-    ResourceLoad { name: String, inner: resources::Error },
+    ResourceLoad { name: String, inner: filereader::Error },
     CanNotDetermineShaderTypeForResource { name: String },
     CompileError { name: String, message: String },
     LinkError { name: String, message: String },
