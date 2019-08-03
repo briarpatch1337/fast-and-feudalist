@@ -146,6 +146,77 @@ impl GameUIData {
     }
 }
 
+struct EventFeedbackRunData
+{
+    pub mouse_clicked: bool,
+    pub mouse_moved: bool,
+    pub current_mouse_pos: MousePos,
+    pub key_pressed: bool,
+    pub last_key_pressed_scancode: Option<sdl2::keyboard::Scancode>
+}
+
+enum EventFeedback
+{
+    Quit,
+    Run(EventFeedbackRunData)
+}
+
+impl EventFeedback {
+    fn consume_pending_events(event_pump: &mut sdl2::EventPump) -> EventFeedback {
+        let mut mouse_clicked = false;
+        let mut mouse_moved = false;
+        let mut key_pressed = false;
+        let mut last_key_pressed_scancode: Option<sdl2::keyboard::Scancode> = None;
+        let mut current_mouse_pos = MousePos { x_pos: 0, y_pos: 0 };
+
+        // Catch up on every event in the event_pump
+        // See documentation for SDL_Event.
+        for event in event_pump.poll_iter() {
+            match event {
+                // SDL_QuitEvent
+                sdl2::event::Event::Quit { .. } => { return EventFeedback::Quit }
+                // SDL_MouseButtonEvent
+                sdl2::event::Event::MouseButtonDown {timestamp: _, window_id: _, which: _, mouse_btn: _, clicks: _, x: _, y: _} => {
+                    mouse_clicked = true;
+                }
+                // SDL_MouseMotionEvent
+                sdl2::event::Event::MouseMotion {timestamp: _, window_id: _, which: _, mousestate: _, x: x_mouse, y: y_mouse, xrel: _, yrel: _} => {
+                    current_mouse_pos = MousePos { x_pos: x_mouse, y_pos: y_mouse };
+                    mouse_moved = true;
+                }
+                // SDL_KeyboardEvent
+                sdl2::event::Event::KeyDown {timestamp: _, window_id: _, keycode: _, scancode, keymod: _, repeat: _} => {
+                    // This is tricky, but effective.
+                    // The variable name 'scancode' is reused to mean something different at different scopes
+                    // Here, scancode is an Option type
+                    match scancode {
+                        Some(scancode) => {
+                            // Here, scancode is a sdl2::keyboard::Scancode type
+                            match scancode {
+                                sdl2::keyboard::Scancode::Escape => { return EventFeedback::Quit }
+                                _ => {
+                                    key_pressed = true;
+                                    last_key_pressed_scancode = Some(scancode);
+                                }
+                            }
+                        }
+                        None => {}
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        EventFeedback::Run(EventFeedbackRunData {
+            mouse_clicked: mouse_clicked,
+            mouse_moved: mouse_moved,
+            current_mouse_pos: current_mouse_pos,
+            key_pressed: key_pressed,
+            last_key_pressed_scancode: last_key_pressed_scancode
+        })
+    }
+}
+
 //
 // Main function
 //
@@ -189,67 +260,28 @@ fn main() {
 
     let mut game_ui_data = GameUIData::defaults();
 
-    let mut current_mouse_pos = MousePos { x_pos: 0, y_pos: 0 };
     // Loop with label 'main (exited by the break 'main statement)
     'main: loop {
-        let mut mouse_clicked = false;
-        let mut mouse_moved = false;
-        let mut key_pressed = false;
-        let mut last_key_pressed_scancode: Option<sdl2::keyboard::Scancode> = None;
+        let event_feedback =
+            match EventFeedback::consume_pending_events(&mut event_pump) {
+                EventFeedback::Quit => { break 'main; }
+                EventFeedback::Run(event_feedback_run_data) => { event_feedback_run_data }
+            };
 
-        // Catch up on every event in the event_pump
-        // See documentation for SDL_Event.
-        for event in event_pump.poll_iter() {
-            match event {
-                // SDL_QuitEvent
-                sdl2::event::Event::Quit { .. } => { break 'main }
-                // SDL_MouseButtonEvent
-                sdl2::event::Event::MouseButtonDown {timestamp: _, window_id: _, which: _, mouse_btn: _, clicks: _, x: _, y: _} => {
-                    mouse_clicked = true;
-                }
-                // SDL_MouseMotionEvent
-                sdl2::event::Event::MouseMotion {timestamp: _, window_id: _, which: _, mousestate: _, x: x_mouse, y: y_mouse, xrel: _, yrel: _} => {
-                    current_mouse_pos = MousePos { x_pos: x_mouse, y_pos: y_mouse };
-                    mouse_moved = true;
-                }
-                // SDL_KeyboardEvent
-                sdl2::event::Event::KeyDown {timestamp: _, window_id: _, keycode: _, scancode, keymod: _, repeat: _} => {
-                    // This is tricky, but effective.
-                    // The variable name 'scancode' is reused to mean something different at different scopes
-                    // Here, scancode is an Option type
-                    match scancode {
-                        Some(scancode) => {
-                            // Here, scancode is a sdl2::keyboard::Scancode type
-                            match scancode {
-                                sdl2::keyboard::Scancode::Escape => { break 'main }
-                                _ => {
-                                    key_pressed = true;
-                                    last_key_pressed_scancode = Some(scancode);
-                                }
-                            }
-                        }
-                        None => {}
-                    }
-                }
-                _ => {}
-            }
-        }
 
-        // No more events to handle
-
-        if mouse_moved {
+        if event_feedback.mouse_moved {
             match game_ui_data.game_stage {
                 GameStage::SetupBoard => {
-                    game_ui_data.pos_under_mouse_for_board_setup = mouse_pos_to_board_piece_destination(current_mouse_pos, (window_width, window_height));
+                    game_ui_data.pos_under_mouse_for_board_setup = mouse_pos_to_board_piece_destination(event_feedback.current_mouse_pos, (window_width, window_height));
                 }
                 GameStage::SetupCities => {
-                    game_ui_data.pos_under_mouse_for_city_setup = mouse_pos_to_game_board_pos(current_mouse_pos, (window_width, window_height));
+                    game_ui_data.pos_under_mouse_for_city_setup = mouse_pos_to_game_board_pos(event_feedback.current_mouse_pos, (window_width, window_height));
                 }
                 _ => {}
             }
         }
 
-        if mouse_clicked {
+        if event_feedback.mouse_clicked {
             match game_ui_data.game_stage {
                 GameStage::SetupBoard => {
                     game_ui_data.drop_board_piece();
@@ -261,9 +293,9 @@ fn main() {
             }
         }
 
-        if key_pressed {
+        if event_feedback.key_pressed {
             use sdl2::keyboard::Scancode::*;
-            match last_key_pressed_scancode.unwrap() {
+            match event_feedback.last_key_pressed_scancode.unwrap() {
                 F2 => {
                     // Reset board
                     game_ui_data.game_board = GameBoard::new();
