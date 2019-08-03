@@ -160,9 +160,6 @@ fn main() {
     let mut font_resources = fonts::FontResources::new();
 
     let player_color = PlayerColor::Red;
-    //let player_color = PlayerColor::Blue;
-    //let player_color = PlayerColor::Green;
-    //let player_color = PlayerColor::Yellow;
     let player_color_spec = player_color.color();
 
     let (window_width, window_height) = hw.drawable_size;
