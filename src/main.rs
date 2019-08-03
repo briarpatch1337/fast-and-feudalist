@@ -153,7 +153,7 @@ struct SVGImages {
 }
 
 impl SVGImages {
-    fn init(ddpi: f32, window_width: u32, player_color_spec: drawing::ColorSpec) -> SVGImages {
+    fn new(ddpi: f32, window_width: u32, player_color_spec: drawing::ColorSpec) -> SVGImages {
         let mut city_image = {
             let svg = nsvg::parse_file(Path::new("assets/svg/city.svg"), nsvg::Units::Pixel, ddpi).unwrap();
             let svg_scaling = svg.width() * 2.0 / window_width as f32;
@@ -242,7 +242,7 @@ fn main() {
     let aspect_ratio = window_width as f32 / window_height as f32;
 
     // SVG images
-    let svg_images = SVGImages::init(ddpi, window_width, player_color_spec.clone());
+    let svg_images = SVGImages::new(ddpi, window_width, player_color_spec.clone());
 
     // Obtains the SDL event pump.
     // At most one EventPump is allowed to be alive during the program's execution. If this function is called while an EventPump instance is alive, the function will return an error.
