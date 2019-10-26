@@ -68,8 +68,34 @@ enum PlayerAction
 {
     SetupBoard,
     SetupCities,
-    Play,
+    ChooseAction,
+    Recruitment,
+    Movement,
+    Construction,
+    NewCity,
+    Expedition,
+    NobleTitle,
     End
+}
+
+
+struct PlayerInventory
+{
+    num_cities: u8,
+    num_strongholds: u8,
+    num_villages: u8,
+    num_knights: u8
+}
+
+impl PlayerInventory {
+    fn new() -> PlayerInventory {
+        PlayerInventory {
+            num_cities: 5,
+            num_strongholds: 2,
+            num_villages: 14,
+            num_knights: 7,
+        }
+    }
 }
 
 
@@ -77,6 +103,7 @@ enum PlayerAction
 struct GameUIData {
     game_board: GameBoard,
     unplaced_board_pieces: std::vec::Vec<BoardPiece>,
+    player_inventory: PlayerInventory,
     active_player_action: PlayerAction,
     pos_under_mouse_for_board_setup: Option<(GameBoardSpacePos, GameBoardSpacePos, GameBoardSpacePos)>,
     pos_under_mouse_for_city_setup: Option<GameBoardSpacePos>,
@@ -87,6 +114,7 @@ impl GameUIData {
         GameUIData {
             game_board: GameBoard::new(),
             unplaced_board_pieces: game_constants::BOARD_PIECES.to_vec(),
+            player_inventory: PlayerInventory::new(),
             active_player_action: PlayerAction::SetupBoard,
             pos_under_mouse_for_board_setup: None,
             pos_under_mouse_for_city_setup: None
@@ -136,8 +164,10 @@ impl GameUIData {
                 _ => {
                     if self.game_board.space_ok_for_city(pos_under_mouse) {
                         self.game_board.add_city(pos_under_mouse, player_color);
+                        self.player_inventory.num_cities -= 1;
+                        self.player_inventory.num_knights -= 1;
                         if self.game_board.num_cities() >= 3 {
-                            self.active_player_action = PlayerAction::Play;
+                            self.active_player_action = PlayerAction::ChooseAction;
                         }
                     }
                 }
@@ -299,8 +329,54 @@ fn main() {
                 F2 => {
                     // Reset board
                     game_ui_data.game_board = GameBoard::new();
+                    game_ui_data.player_inventory = PlayerInventory::new();
                     game_ui_data.unplaced_board_pieces = game_constants::BOARD_PIECES.to_vec();
                     game_ui_data.active_player_action = PlayerAction::SetupBoard;
+                }
+                Num1 => {
+                    // Recruitment
+                    if let PlayerAction::ChooseAction = game_ui_data.active_player_action {
+                        game_ui_data.active_player_action = PlayerAction::Recruitment;
+                    }
+                }
+                Num2 => {
+                    // Movement
+                    if let PlayerAction::ChooseAction = game_ui_data.active_player_action {
+                        game_ui_data.active_player_action = PlayerAction::Movement;
+                    }
+                }
+                Num3 => {
+                    // Construction
+                    if let PlayerAction::ChooseAction = game_ui_data.active_player_action {
+                        game_ui_data.active_player_action = PlayerAction::Construction;
+                    }
+                }
+                Num4 => {
+                    // NewCity
+                    if let PlayerAction::ChooseAction = game_ui_data.active_player_action {
+                        game_ui_data.active_player_action = PlayerAction::NewCity;
+                    }
+                }
+                Num5 => {
+                    // Expedition
+                    if let PlayerAction::ChooseAction = game_ui_data.active_player_action {
+                        game_ui_data.active_player_action = PlayerAction::Expedition;
+                    }
+                }
+                Num6 => {
+                    // NobleTitle
+                    if let PlayerAction::ChooseAction = game_ui_data.active_player_action {
+                        game_ui_data.active_player_action = PlayerAction::NobleTitle;
+                    }
+                }
+                Backspace => {
+                    // Undo action selection
+                    match game_ui_data.active_player_action {
+                        PlayerAction::Recruitment | PlayerAction::Movement | PlayerAction::Construction | PlayerAction::NewCity | PlayerAction::Expedition | PlayerAction::NobleTitle => {
+                            game_ui_data.active_player_action = PlayerAction::ChooseAction;
+                        },
+                        _ => {}
+                    }
                 }
                 _ => {}
             }
@@ -311,9 +387,10 @@ fn main() {
             hw.gl.Clear(gl::COLOR_BUFFER_BIT);
         }
 
-        // Draw
+        // Draw board
         game_ui_data.game_board.draw_board(&hw.gl, &shader_program);
 
+        // Highlight the space underneath the mouse cursor
         match game_ui_data.active_player_action {
             PlayerAction::SetupBoard => {
                 match game_ui_data.pos_under_mouse_for_board_setup {
@@ -378,9 +455,34 @@ fn main() {
                     drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "City Setup".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
                     drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.22, y: 0.82 }, 18, "Place cities to determine your starting positions.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
                 }
-                PlayerAction::Play => {
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "Game Play".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.09, y: 0.82 }, 18, "Choose an action.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                PlayerAction::ChooseAction => {
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.10, y: 0.90 }, 24, "Choose Action".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.40, y: 0.82 }, 18, "1. Recruitment  2. Movement  3. Construction  4. New City  5. Expedition  6. Noble Title".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                }
+                PlayerAction::Recruitment => {
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "Recruitment".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.14, y: 0.82 }, 18, "Pick a city to add knights to.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.14, y: 0.74 }, 18, "Press Backspace to cancel.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                }
+                PlayerAction::Movement => {
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "Movement".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.12, y: 0.82 }, 18, "Select a knight to move.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                }
+                PlayerAction::Construction => {
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "Construction".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.12, y: 0.82 }, 18, "Select a knight to build with.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                }
+                PlayerAction::NewCity => {
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "New City".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.16, y: 0.82 }, 18, "Select a village to upgrade to a city.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                }
+                PlayerAction::Expedition => {
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "Expedition".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.20, y: 0.82 }, 18, "Select a board space on the edge of the map.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                }
+                PlayerAction::NobleTitle => {
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "Noble Title".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.16, y: 0.82 }, 18, "Press 'Y' to upgrade your noble title.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
                 }
                 PlayerAction::End => {}
             }
@@ -419,10 +521,10 @@ fn main() {
                     drawing::PositionSpec{ x: -0.92, y: 0.36 },
                     drawing::SizeSpec{ x: x_scale * 0.5, y: y_scale * 0.5});
             }
-            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.60 }, 24, "5".to_string(),  player_color_spec.clone());
-            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.52 }, 24, "2".to_string(),  player_color_spec.clone());
-            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.44 }, 24, "14".to_string(), player_color_spec.clone());
-            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.36 }, 24, "7".to_string(),  player_color_spec.clone());
+            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.60 }, 24, game_ui_data.player_inventory.num_cities.to_string(),  player_color_spec.clone());
+            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.52 }, 24, game_ui_data.player_inventory.num_strongholds.to_string(),  player_color_spec.clone());
+            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.44 }, 24, game_ui_data.player_inventory.num_villages.to_string(), player_color_spec.clone());
+            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.36 }, 24, game_ui_data.player_inventory.num_knights.to_string(),  player_color_spec.clone());
         }
 
         // Draw cities
