@@ -64,7 +64,7 @@ pub enum PlayerColor
 }
 
 
-enum GameStage
+enum PlayerAction
 {
     SetupBoard,
     SetupCities,
@@ -77,7 +77,7 @@ enum GameStage
 struct GameUIData {
     game_board: GameBoard,
     unplaced_board_pieces: std::vec::Vec<BoardPiece>,
-    game_stage: GameStage,
+    active_player_action: PlayerAction,
     pos_under_mouse_for_board_setup: Option<(GameBoardSpacePos, GameBoardSpacePos, GameBoardSpacePos)>,
     pos_under_mouse_for_city_setup: Option<GameBoardSpacePos>,
 }
@@ -87,7 +87,7 @@ impl GameUIData {
         GameUIData {
             game_board: GameBoard::new(),
             unplaced_board_pieces: game_constants::BOARD_PIECES.to_vec(),
-            game_stage: GameStage::SetupBoard,
+            active_player_action: PlayerAction::SetupBoard,
             pos_under_mouse_for_board_setup: None,
             pos_under_mouse_for_city_setup: None
         }
@@ -123,7 +123,7 @@ impl GameUIData {
             let num_players = 1;
 
             if self.unplaced_board_pieces.len() <= game_constants::BOARD_PIECES.len() - PIECES_PER_PLAYER * num_players {
-                self.game_stage = GameStage::SetupCities;
+                self.active_player_action = PlayerAction::SetupCities;
             }
         }
     }
@@ -137,7 +137,7 @@ impl GameUIData {
                     if self.game_board.space_ok_for_city(pos_under_mouse) {
                         self.game_board.add_city(pos_under_mouse, player_color);
                         if self.game_board.num_cities() >= 3 {
-                            self.game_stage = GameStage::Play;
+                            self.active_player_action = PlayerAction::Play;
                         }
                     }
                 }
@@ -270,11 +270,11 @@ fn main() {
 
 
         if event_feedback.mouse_moved {
-            match game_ui_data.game_stage {
-                GameStage::SetupBoard => {
+            match game_ui_data.active_player_action {
+                PlayerAction::SetupBoard => {
                     game_ui_data.pos_under_mouse_for_board_setup = mouse_pos_to_board_piece_destination(event_feedback.current_mouse_pos, (window_width, window_height));
                 }
-                GameStage::SetupCities => {
+                PlayerAction::SetupCities => {
                     game_ui_data.pos_under_mouse_for_city_setup = mouse_pos_to_game_board_pos(event_feedback.current_mouse_pos, (window_width, window_height));
                 }
                 _ => {}
@@ -282,11 +282,11 @@ fn main() {
         }
 
         if event_feedback.mouse_clicked {
-            match game_ui_data.game_stage {
-                GameStage::SetupBoard => {
+            match game_ui_data.active_player_action {
+                PlayerAction::SetupBoard => {
                     game_ui_data.drop_board_piece();
                 }
-                GameStage::SetupCities => {
+                PlayerAction::SetupCities => {
                     game_ui_data.drop_city(player_color.clone());
                 }
                 _ => {}
@@ -300,7 +300,7 @@ fn main() {
                     // Reset board
                     game_ui_data.game_board = GameBoard::new();
                     game_ui_data.unplaced_board_pieces = game_constants::BOARD_PIECES.to_vec();
-                    game_ui_data.game_stage = GameStage::SetupBoard;
+                    game_ui_data.active_player_action = PlayerAction::SetupBoard;
                 }
                 _ => {}
             }
@@ -314,8 +314,8 @@ fn main() {
         // Draw
         game_ui_data.game_board.draw_board(&hw.gl, &shader_program);
 
-        match game_ui_data.game_stage {
-            GameStage::SetupBoard => {
+        match game_ui_data.active_player_action {
+            PlayerAction::SetupBoard => {
                 match game_ui_data.pos_under_mouse_for_board_setup {
                     Some((pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c)) => {
                         highlight_spaces_for_board_setup(
@@ -327,7 +327,7 @@ fn main() {
                     None => {}
                 }
             }
-            GameStage::SetupCities => {
+            PlayerAction::SetupCities => {
                 match game_ui_data.pos_under_mouse_for_city_setup {
                     Some(pos_under_mouse) => {
                         highlight_space_for_city_setup(
@@ -369,20 +369,20 @@ fn main() {
 
             drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: 0.85 }, 48, "Fast and Feudalist".to_string(), drawing::ColorSpec { r: 0xFF, g: 0xD7, b: 0x00 });
 
-            match game_ui_data.game_stage {
-                GameStage::SetupBoard => {
+            match game_ui_data.active_player_action {
+                PlayerAction::SetupBoard => {
                     drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "Game Setup".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
                     drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.18, y: 0.82 }, 18, "Lay board game pieces to build the map.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
                 }
-                GameStage::SetupCities => {
+                PlayerAction::SetupCities => {
                     drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "City Setup".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
                     drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.22, y: 0.82 }, 18, "Place cities to determine your starting positions.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
                 }
-                GameStage::Play => {
+                PlayerAction::Play => {
                     drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "Game Play".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
                     drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.09, y: 0.82 }, 18, "Choose an action.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
                 }
-                GameStage::End => {}
+                PlayerAction::End => {}
             }
 
 
