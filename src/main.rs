@@ -467,22 +467,27 @@ fn main() {
                 PlayerAction::Movement => {
                     drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "Movement".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
                     drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.12, y: 0.82 }, 18, "Select a knight to move.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.14, y: 0.74 }, 18, "Press Backspace to cancel.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
                 }
                 PlayerAction::Construction => {
                     drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "Construction".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
                     drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.12, y: 0.82 }, 18, "Select a knight to build with.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.14, y: 0.74 }, 18, "Press Backspace to cancel.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
                 }
                 PlayerAction::NewCity => {
                     drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "New City".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
                     drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.16, y: 0.82 }, 18, "Select a village to upgrade to a city.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.14, y: 0.74 }, 18, "Press Backspace to cancel.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
                 }
                 PlayerAction::Expedition => {
                     drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "Expedition".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
                     drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.20, y: 0.82 }, 18, "Select a board space on the edge of the map.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.14, y: 0.74 }, 18, "Press Backspace to cancel.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
                 }
                 PlayerAction::NobleTitle => {
                     drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "Noble Title".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
                     drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.16, y: 0.82 }, 18, "Press 'Y' to upgrade your noble title.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.14, y: 0.74 }, 18, "Press Backspace to cancel.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
                 }
                 PlayerAction::End => {}
             }
