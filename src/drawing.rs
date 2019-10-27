@@ -380,7 +380,7 @@ pub struct CharacterTexture {
 }
 
 
-#[derive(Eq, Hash, PartialEq)]
+#[derive(Clone, Eq, Hash, PartialEq)]
 pub struct CharacterSpec {
     pub character: char,
     pub font_size: u32
@@ -395,6 +395,51 @@ pub struct TextCache {
 impl TextCache {
     pub fn new() -> TextCache {
         TextCache { rendered_characters: std::collections::HashMap::new() }
+    }
+
+    pub fn get_character(&mut self, gl: &gl::Gl, character_spec: &CharacterSpec, font_face: &freetype::face::Face) -> &CharacterTexture {
+        if !self.rendered_characters.contains_key(&character_spec) {
+            self.render_character(gl, character_spec, font_face);
+        }
+        return &self.rendered_characters[&character_spec];
+    }
+
+    fn render_character(&mut self, gl: &gl::Gl, character_spec: &CharacterSpec, font_face: &freetype::face::Face) {
+        let mut texture_id: gl::types::GLuint = 0;
+        font_face.load_char(character_spec.character as usize, freetype::face::LoadFlag::RENDER).unwrap();
+        unsafe {
+            gl.ActiveTexture(gl::TEXTURE0);
+            gl.GenTextures(1, &mut texture_id);
+            gl.BindTexture(gl::TEXTURE_2D, texture_id);
+            gl.TexImage2D(
+                gl::TEXTURE_2D,
+                0,
+                gl::RED as i32,
+                font_face.glyph().bitmap().width(),
+                font_face.glyph().bitmap().rows(),
+                0,
+                gl::RED,
+                gl::UNSIGNED_BYTE,
+                font_face.glyph().bitmap().buffer().as_ptr() as *const std::os::raw::c_void
+            );
+            gl.TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
+            gl.TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+            gl.TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
+            gl.TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
+        }
+        self.rendered_characters.insert(
+            character_spec.clone(),
+            CharacterTexture {
+                texture_id: texture_id,
+                bitmap_size: glm::ivec2(
+                    font_face.glyph().bitmap().width(),
+                    font_face.glyph().bitmap().rows()),
+                bearing: glm::ivec2(
+                    font_face.glyph().bitmap_left(),
+                    font_face.glyph().bitmap_top()),
+                advance: font_face.glyph().advance()
+            }
+        );
     }
 }
 
@@ -472,45 +517,7 @@ pub fn draw_text(
     for current_character in text.chars() {
         let character_spec = CharacterSpec { character: current_character, font_size: font_size };
 
-        if !text_cache.rendered_characters.contains_key(&character_spec) {
-            let mut texture_id: gl::types::GLuint = 0;
-            font_face.load_char(current_character as usize, freetype::face::LoadFlag::RENDER).unwrap();
-            unsafe {
-                gl.ActiveTexture(gl::TEXTURE0);
-                gl.GenTextures(1, &mut texture_id);
-                gl.BindTexture(gl::TEXTURE_2D, texture_id);
-                gl.TexImage2D(
-                    gl::TEXTURE_2D,
-                    0,
-                    gl::RED as i32,
-                    font_face.glyph().bitmap().width(),
-                    font_face.glyph().bitmap().rows(),
-                    0,
-                    gl::RED,
-                    gl::UNSIGNED_BYTE,
-                    font_face.glyph().bitmap().buffer().as_ptr() as *const std::os::raw::c_void
-                );
-                gl.TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
-                gl.TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
-                gl.TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
-                gl.TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
-            }
-            text_cache.rendered_characters.insert(
-                CharacterSpec { character: current_character, font_size: font_size },
-                CharacterTexture {
-                    texture_id: texture_id,
-                    bitmap_size: glm::ivec2(
-                        font_face.glyph().bitmap().width(),
-                        font_face.glyph().bitmap().rows()),
-                    bearing: glm::ivec2(
-                        font_face.glyph().bitmap_left(),
-                        font_face.glyph().bitmap_top()),
-                    advance: font_face.glyph().advance()
-                }
-            );
-        }
-
-        let character_texture: &CharacterTexture = &text_cache.rendered_characters[&character_spec];
+        let character_texture: &CharacterTexture = text_cache.get_character(gl, &character_spec, font_face);
 
         // TODO do the scaling in the GPU
         let x_pos: f32 = current_x + character_texture.bearing.x as f32 * scaling_x;
