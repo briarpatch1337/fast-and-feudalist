@@ -372,6 +372,7 @@ pub fn draw_rectangle_outline(gl: &gl::Gl, shader_program: &render_gl::Program, 
 }
 
 
+#[derive(Clone)]
 pub struct CharacterTexture {
     pub texture_id: gl::types::GLuint,
     pub bitmap_size: glm::IVec2,
@@ -397,11 +398,11 @@ impl TextCache {
         TextCache { rendered_characters: std::collections::HashMap::new() }
     }
 
-    pub fn get_character(&mut self, gl: &gl::Gl, character_spec: &CharacterSpec, font_face: &freetype::face::Face) -> &CharacterTexture {
+    pub fn get_character(&mut self, gl: &gl::Gl, character_spec: &CharacterSpec, font_face: &freetype::face::Face) -> CharacterTexture {
         if !self.rendered_characters.contains_key(&character_spec) {
             self.render_character(gl, character_spec, font_face);
         }
-        return &self.rendered_characters[&character_spec];
+        return self.rendered_characters[&character_spec].clone();
     }
 
     fn render_character(&mut self, gl: &gl::Gl, character_spec: &CharacterSpec, font_face: &freetype::face::Face) {
@@ -514,11 +515,14 @@ pub fn draw_text(
     let scaling_x = 2.0 / window_width as f32;
     let scaling_y = 2.0 / window_height as f32;
 
+    let mut character_textures: Vec<CharacterTexture> = Vec::new();
     for current_character in text.chars() {
         let character_spec = CharacterSpec { character: current_character, font_size: font_size };
+        let character_texture: CharacterTexture = text_cache.get_character(gl, &character_spec, font_face);
+        character_textures.push(character_texture)
+    }
 
-        let character_texture: &CharacterTexture = text_cache.get_character(gl, &character_spec, font_face);
-
+    for character_texture in character_textures {
         // TODO do the scaling in the GPU
         let x_pos: f32 = current_x + character_texture.bearing.x as f32 * scaling_x;
         let y_pos: f32 = current_y + character_texture.bearing.y as f32 * scaling_y;
