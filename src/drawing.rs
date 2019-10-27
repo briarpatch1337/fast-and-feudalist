@@ -514,15 +514,15 @@ pub fn draw_text(
 
         // TODO do the scaling in the GPU
         let x_pos: f32 = current_x + character_texture.bearing.x as f32 * scaling_x;
-        let y_pos: f32 = -current_y - character_texture.bearing.y as f32 * scaling_y;
+        let y_pos: f32 = current_y + character_texture.bearing.y as f32 * scaling_y;
         let w: f32 = character_texture.bitmap_size.x as f32 * scaling_x;
         let h: f32 = character_texture.bitmap_size.y as f32 * scaling_y;
 
         let vertices: Vec<f32> = vec![
-            x_pos,     -y_pos,     0.0, 0.0,
-            x_pos + w, -y_pos,     1.0, 0.0,
-            x_pos,     -y_pos - h, 0.0, 1.0,
-            x_pos + w, -y_pos - h, 1.0, 1.0
+            x_pos,     y_pos,     0.0, 0.0,
+            x_pos + w, y_pos,     1.0, 0.0,
+            x_pos,     y_pos - h, 0.0, 1.0,
+            x_pos + w, y_pos - h, 1.0, 1.0
         ];
 
         unsafe {
