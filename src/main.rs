@@ -333,37 +333,37 @@ fn main() {
                     game_ui_data.unplaced_board_pieces = game_constants::BOARD_PIECES.to_vec();
                     game_ui_data.active_player_action = PlayerAction::SetupBoard;
                 }
-                Num1 => {
+                Num1 | Kp1 => {
                     // Recruitment
                     if let PlayerAction::ChooseAction = game_ui_data.active_player_action {
                         game_ui_data.active_player_action = PlayerAction::Recruitment;
                     }
                 }
-                Num2 => {
+                Num2 | Kp2 => {
                     // Movement
                     if let PlayerAction::ChooseAction = game_ui_data.active_player_action {
                         game_ui_data.active_player_action = PlayerAction::Movement;
                     }
                 }
-                Num3 => {
+                Num3 | Kp3 => {
                     // Construction
                     if let PlayerAction::ChooseAction = game_ui_data.active_player_action {
                         game_ui_data.active_player_action = PlayerAction::Construction;
                     }
                 }
-                Num4 => {
+                Num4 | Kp4 => {
                     // NewCity
                     if let PlayerAction::ChooseAction = game_ui_data.active_player_action {
                         game_ui_data.active_player_action = PlayerAction::NewCity;
                     }
                 }
-                Num5 => {
+                Num5 | Kp5 => {
                     // Expedition
                     if let PlayerAction::ChooseAction = game_ui_data.active_player_action {
                         game_ui_data.active_player_action = PlayerAction::Expedition;
                     }
                 }
-                Num6 => {
+                Num6 | Kp6 => {
                     // NobleTitle
                     if let PlayerAction::ChooseAction = game_ui_data.active_player_action {
                         game_ui_data.active_player_action = PlayerAction::NobleTitle;
