@@ -105,8 +105,8 @@ struct GameUIData {
     unplaced_board_pieces: std::vec::Vec<BoardPiece>,
     player_inventory: PlayerInventory,
     active_player_action: PlayerAction,
-    pos_under_mouse_for_board_setup: Option<(GameBoardSpacePos, GameBoardSpacePos, GameBoardSpacePos)>,
-    pos_under_mouse_for_city_setup: Option<GameBoardSpacePos>,
+    three_pos_under_mouse: Option<(GameBoardSpacePos, GameBoardSpacePos, GameBoardSpacePos)>,
+    one_pos_under_mouse: Option<GameBoardSpacePos>,
 }
 
 impl GameUIData {
@@ -116,14 +116,14 @@ impl GameUIData {
             unplaced_board_pieces: game_constants::BOARD_PIECES.to_vec(),
             player_inventory: PlayerInventory::new(),
             active_player_action: PlayerAction::SetupBoard,
-            pos_under_mouse_for_board_setup: None,
-            pos_under_mouse_for_city_setup: None
+            three_pos_under_mouse: None,
+            one_pos_under_mouse: None
         }
     }
 
     fn drop_board_piece(&mut self) {
-        if self.pos_under_mouse_for_board_setup.is_some() {
-            let (pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c) = self.pos_under_mouse_for_board_setup.unwrap();
+        if self.three_pos_under_mouse.is_some() {
+            let (pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c) = self.three_pos_under_mouse.unwrap();
             let game_board = &mut self.game_board;
 
             if
@@ -157,8 +157,8 @@ impl GameUIData {
     }
 
     fn drop_city(&mut self, player_color: PlayerColor) {
-        if self.pos_under_mouse_for_city_setup.is_some() {
-            let pos_under_mouse = self.pos_under_mouse_for_city_setup.unwrap();
+        if self.one_pos_under_mouse.is_some() {
+            let pos_under_mouse = self.one_pos_under_mouse.unwrap();
             match self.game_board.get_board_space_type(pos_under_mouse) {
                 GameBoardSpaceType::Void => {}
                 _ => {
@@ -302,10 +302,10 @@ fn main() {
         if event_feedback.mouse_moved {
             match game_ui_data.active_player_action {
                 PlayerAction::SetupBoard => {
-                    game_ui_data.pos_under_mouse_for_board_setup = mouse_pos_to_board_piece_destination(event_feedback.current_mouse_pos, (window_width, window_height));
+                    game_ui_data.three_pos_under_mouse = mouse_pos_to_board_piece_destination(event_feedback.current_mouse_pos, (window_width, window_height));
                 }
                 PlayerAction::SetupCities => {
-                    game_ui_data.pos_under_mouse_for_city_setup = mouse_pos_to_game_board_pos(event_feedback.current_mouse_pos, (window_width, window_height));
+                    game_ui_data.one_pos_under_mouse = mouse_pos_to_game_board_pos(event_feedback.current_mouse_pos, (window_width, window_height));
                 }
                 _ => {}
             }
@@ -393,7 +393,7 @@ fn main() {
         // Highlight the space underneath the mouse cursor
         match game_ui_data.active_player_action {
             PlayerAction::SetupBoard => {
-                match game_ui_data.pos_under_mouse_for_board_setup {
+                match game_ui_data.three_pos_under_mouse {
                     Some((pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c)) => {
                         highlight_spaces_for_board_setup(
                             &hw.gl,
@@ -405,7 +405,7 @@ fn main() {
                 }
             }
             PlayerAction::SetupCities => {
-                match game_ui_data.pos_under_mouse_for_city_setup {
+                match game_ui_data.one_pos_under_mouse {
                     Some(pos_under_mouse) => {
                         highlight_space_for_city_setup(
                             &hw.gl,
