@@ -455,12 +455,26 @@ pub struct TextDrawingBaggage<'a> {
 }
 
 
+pub enum ObjectOriginLocation {
+    TopLeft,
+    TopCenter,
+    TopRight,
+    Left,
+    Center,
+    Right,
+    BottomLeft,
+    BottomCenter,
+    BottomRight
+}
+
+
 pub fn draw_text(
     baggage: &mut TextDrawingBaggage,
     position: PositionSpec,
+    origin: ObjectOriginLocation,
     font_size: u32,
-    text: std::string::String,
-    color: ColorSpec)
+    color: ColorSpec,
+    text: std::string::String)
 {
     let gl = &baggage.gl;
     let shader_program = &baggage.shader_program;
@@ -509,18 +523,31 @@ pub fn draw_text(
         gl.EnableVertexAttribArray(0);
     }
 
-    let mut current_x = position.x;
-    let mut current_y = position.y;
-
-    let scaling_x = 2.0 / window_width as f32;
-    let scaling_y = 2.0 / window_height as f32;
-
     let mut character_textures: Vec<CharacterTexture> = Vec::new();
     for current_character in text.chars() {
         let character_spec = CharacterSpec { character: current_character, font_size: font_size };
         let character_texture: CharacterTexture = text_cache.get_character(gl, &character_spec, font_face);
         character_textures.push(character_texture)
     }
+
+    let scaling_x = 2.0 / window_width as f32;
+    let scaling_y = 2.0 / window_height as f32;
+
+    let phrase_width = character_textures.iter().map(|character_texture| (character_texture.advance.x >> 6)).sum::<i32>() as f32 * scaling_x;
+    let phrase_top = character_textures.iter().map(|character_texture| character_texture.bearing.y).max().unwrap() as f32 * scaling_y;
+    let phrase_bottom = character_textures.iter().map(|character_texture| character_texture.bearing.y - character_texture.bitmap_size.y).min().unwrap() as f32 * scaling_y;
+
+    let mut current_x = match origin {
+        ObjectOriginLocation::TopLeft | ObjectOriginLocation::Left | ObjectOriginLocation::BottomLeft => {position.x},
+        ObjectOriginLocation::TopCenter | ObjectOriginLocation::Center | ObjectOriginLocation::BottomCenter => {position.x - phrase_width / 2.0},
+        ObjectOriginLocation::TopRight | ObjectOriginLocation::Right | ObjectOriginLocation::BottomRight => {position.x - phrase_width}
+    };
+
+    let mut current_y = match origin {
+        ObjectOriginLocation::TopLeft | ObjectOriginLocation::TopCenter | ObjectOriginLocation::TopRight => {position.y - phrase_top},
+        ObjectOriginLocation::Left | ObjectOriginLocation::Center | ObjectOriginLocation::Right => {position.y}, // actually, this aligns the y position with the normal "baseline"
+        ObjectOriginLocation::BottomLeft | ObjectOriginLocation::BottomCenter | ObjectOriginLocation::BottomRight => {position.y - phrase_bottom}
+    };
 
     for character_texture in character_textures {
         // TODO do the scaling in the GPU

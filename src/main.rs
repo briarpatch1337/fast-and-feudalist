@@ -444,50 +444,75 @@ fn main() {
                 text_cache: &mut font_resources.text_cache
             };
 
-            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: 0.85 }, 48, "Fast and Feudalist".to_string(), drawing::ColorSpec { r: 0xFF, g: 0xD7, b: 0x00 });
+            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: 0.85 }, drawing::ObjectOriginLocation::Left, 48, drawing::ColorSpec { r: 0xFF, g: 0xD7, b: 0x00 },
+                "Fast and Feudalist".to_string());
 
             match game_ui_data.active_player_action {
                 PlayerAction::SetupBoard => {
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "Game Setup".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.18, y: 0.82 }, 18, "Lay board game pieces to build the map.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                        "Game Setup".to_string());
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                        "Lay board game pieces to build the map.".to_string());
                 }
                 PlayerAction::SetupCities => {
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "City Setup".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.22, y: 0.82 }, 18, "Place cities to determine your starting positions.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                        "City Setup".to_string());
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                        "Place cities to determine your starting positions.".to_string());
                 }
                 PlayerAction::ChooseAction => {
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.10, y: 0.90 }, 24, "Choose Action".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.40, y: 0.82 }, 18, "1. Recruitment  2. Movement  3. Construction  4. New City  5. Expedition  6. Noble Title".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                        "Choose Action".to_string());
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                        "1. Recruitment  2. Movement  3. Construction  4. New City  5. Expedition  6. Noble Title".to_string());
                 }
                 PlayerAction::Recruitment => {
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "Recruitment".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.14, y: 0.82 }, 18, "Pick a city to add knights to.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.14, y: 0.74 }, 18, "Press Backspace to cancel.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                        "Recruitment".to_string());
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                        "Pick a city to add knights to.".to_string());
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.74 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                        "Press Backspace to cancel.".to_string());
                 }
                 PlayerAction::Movement => {
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "Movement".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.12, y: 0.82 }, 18, "Select a knight to move.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.14, y: 0.74 }, 18, "Press Backspace to cancel.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                        "Movement".to_string());
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                        "Select a knight to move.".to_string());
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.74 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                        "Press Backspace to cancel.".to_string());
                 }
                 PlayerAction::Construction => {
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "Construction".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.12, y: 0.82 }, 18, "Select a knight to build with.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.14, y: 0.74 }, 18, "Press Backspace to cancel.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                        "Construction".to_string());
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                        "Select a knight to build with.".to_string());
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.74 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                        "Press Backspace to cancel.".to_string());
                 }
                 PlayerAction::NewCity => {
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "New City".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.16, y: 0.82 }, 18, "Select a village to upgrade to a city.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.14, y: 0.74 }, 18, "Press Backspace to cancel.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                        "New City".to_string());
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                        "Select a village to upgrade to a city.".to_string());
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.74 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                        "Press Backspace to cancel.".to_string());
                 }
                 PlayerAction::Expedition => {
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "Expedition".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.20, y: 0.82 }, 18, "Select a board space on the edge of the map.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.14, y: 0.74 }, 18, "Press Backspace to cancel.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                        "Expedition".to_string());
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                        "Select a board space on the edge of the map.".to_string());
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.74 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                        "Press Backspace to cancel.".to_string());
                 }
                 PlayerAction::NobleTitle => {
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.08, y: 0.90 }, 24, "Noble Title".to_string(),                              drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.16, y: 0.82 }, 18, "Press 'Y' to upgrade your noble title.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.14, y: 0.74 }, 18, "Press Backspace to cancel.".to_string(), drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA });
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                        "Noble Title".to_string());
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                        "Press 'Y' to upgrade your noble title.".to_string());
+                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.74 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                        "Press Backspace to cancel.".to_string());
                 }
                 PlayerAction::End => {}
             }
@@ -526,10 +551,14 @@ fn main() {
                     drawing::PositionSpec{ x: -0.92, y: 0.36 },
                     drawing::SizeSpec{ x: x_scale * 0.5, y: y_scale * 0.5});
             }
-            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.60 }, 24, game_ui_data.player_inventory.num_cities.to_string(),  player_color_spec.clone());
-            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.52 }, 24, game_ui_data.player_inventory.num_strongholds.to_string(),  player_color_spec.clone());
-            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.44 }, 24, game_ui_data.player_inventory.num_villages.to_string(), player_color_spec.clone());
-            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.36 }, 24, game_ui_data.player_inventory.num_knights.to_string(),  player_color_spec.clone());
+            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.60 }, drawing::ObjectOriginLocation::Left, 24, player_color_spec.clone(),
+                game_ui_data.player_inventory.num_cities.to_string());
+            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.52 }, drawing::ObjectOriginLocation::Left, 24, player_color_spec.clone(),
+                game_ui_data.player_inventory.num_strongholds.to_string());
+            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.44 }, drawing::ObjectOriginLocation::Left, 24, player_color_spec.clone(),
+                game_ui_data.player_inventory.num_villages.to_string());
+            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.36 }, drawing::ObjectOriginLocation::Left, 24, player_color_spec.clone(),
+                game_ui_data.player_inventory.num_knights.to_string());
         }
 
         // Draw cities
