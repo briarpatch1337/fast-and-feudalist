@@ -36,6 +36,7 @@ pub mod render_gl;
 pub mod filereader;
 
 // And some more
+pub mod actions;
 pub mod drawing;
 pub mod colors;
 pub mod fonts;
@@ -64,21 +65,6 @@ pub enum PlayerColor
 }
 
 
-enum PlayerAction
-{
-    SetupBoard,
-    SetupCities,
-    ChooseAction,
-    Recruitment,
-    Movement,
-    Construction,
-    NewCity,
-    Expedition,
-    NobleTitle,
-    End
-}
-
-
 struct PlayerInventory
 {
     num_cities: u8,
@@ -100,11 +86,12 @@ impl PlayerInventory {
 
 
 // UI data, for now, will be constructed in the main function, and passed by reference where needed.
-struct GameUIData {
+pub struct GameUIData {
+    num_players: u8,
     game_board: GameBoard,
     unplaced_board_pieces: std::vec::Vec<BoardPiece>,
     player_inventory: PlayerInventory,
-    active_player_action: PlayerAction,
+    player_color: PlayerColor,
     three_pos_under_mouse: Option<(GameBoardSpacePos, GameBoardSpacePos, GameBoardSpacePos)>,
     one_pos_under_mouse: Option<GameBoardSpacePos>,
 }
@@ -112,10 +99,11 @@ struct GameUIData {
 impl GameUIData {
     fn defaults() -> GameUIData {
         GameUIData {
+            num_players: 1,
             game_board: GameBoard::new(),
             unplaced_board_pieces: game_constants::BOARD_PIECES.to_vec(),
             player_inventory: PlayerInventory::new(),
-            active_player_action: PlayerAction::SetupBoard,
+            player_color: PlayerColor::Red,
             three_pos_under_mouse: None,
             one_pos_under_mouse: None
         }
@@ -146,29 +134,19 @@ impl GameUIData {
                 game_board.set_board_space_type(pos_under_mouse_b, new_b);
                 game_board.set_board_space_type(pos_under_mouse_c, new_c);
             }
-
-            const PIECES_PER_PLAYER: usize = 9;
-            let num_players = 1;
-
-            if self.unplaced_board_pieces.len() <= game_constants::BOARD_PIECES.len() - PIECES_PER_PLAYER * num_players {
-                self.active_player_action = PlayerAction::SetupCities;
-            }
         }
     }
 
-    fn drop_city(&mut self, player_color: PlayerColor) {
+    fn drop_city(&mut self) {
         if self.one_pos_under_mouse.is_some() {
             let pos_under_mouse = self.one_pos_under_mouse.unwrap();
             match self.game_board.get_board_space_type(pos_under_mouse) {
                 GameBoardSpaceType::Void => {}
                 _ => {
                     if self.game_board.space_ok_for_city(pos_under_mouse) {
-                        self.game_board.add_city(pos_under_mouse, player_color);
+                        self.game_board.add_city(pos_under_mouse, self.player_color.clone());
                         self.player_inventory.num_cities -= 1;
                         self.player_inventory.num_knights -= 1;
-                        if self.game_board.num_cities() >= 3 {
-                            self.active_player_action = PlayerAction::ChooseAction;
-                        }
                     }
                 }
             }
@@ -260,15 +238,9 @@ fn main() {
     // Fonts
     let mut font_resources = fonts::FontResources::new();
 
-    let player_color = PlayerColor::Red;
-    let player_color_spec = player_color.color();
-
     let (window_width, window_height) = hw.drawable_size;
     let (ddpi, hdpi, vdpi) = hw.display_dpi;
     let aspect_ratio = window_width as f32 / window_height as f32;
-
-    // SVG images
-    let svg_images = SVGImages::new(ddpi, window_width, player_color_spec.clone());
 
     // Obtains the SDL event pump.
     // At most one EventPump is allowed to be alive during the program's execution. If this function is called while an EventPump instance is alive, the function will return an error.
@@ -290,6 +262,13 @@ fn main() {
 
     let mut game_ui_data = GameUIData::defaults();
 
+    let player_color_spec = game_ui_data.player_color.color();
+
+    // SVG images
+    let svg_images = SVGImages::new(ddpi, window_width, player_color_spec.clone());
+
+    let mut active_player_action: &actions::PlayerActionControl = &actions::SetupBoard {};
+
     // Loop with label 'main (exited by the break 'main statement)
     'main: loop {
         let event_feedback =
@@ -300,11 +279,11 @@ fn main() {
 
 
         if event_feedback.mouse_moved {
-            match game_ui_data.active_player_action {
-                PlayerAction::SetupBoard => {
+            match active_player_action.get_action_type() {
+                actions::PlayerActionType::SetupBoard => {
                     game_ui_data.three_pos_under_mouse = mouse_pos_to_board_piece_destination(event_feedback.current_mouse_pos, (window_width, window_height));
                 }
-                PlayerAction::SetupCities => {
+                actions::PlayerActionType::SetupCities => {
                     game_ui_data.one_pos_under_mouse = mouse_pos_to_game_board_pos(event_feedback.current_mouse_pos, (window_width, window_height));
                 }
                 _ => {}
@@ -312,18 +291,11 @@ fn main() {
         }
 
         if event_feedback.mouse_clicked {
-            match game_ui_data.active_player_action {
-                PlayerAction::SetupBoard => {
-                    game_ui_data.drop_board_piece();
-                }
-                PlayerAction::SetupCities => {
-                    game_ui_data.drop_city(player_color.clone());
-                }
-                _ => {}
-            }
+            active_player_action = active_player_action.mouse_clicked(&mut game_ui_data);
         }
 
         if event_feedback.key_pressed {
+            active_player_action = active_player_action.key_pressed(&mut game_ui_data, &event_feedback.last_key_pressed_scancode.unwrap());
             use sdl2::keyboard::Scancode::*;
             match event_feedback.last_key_pressed_scancode.unwrap() {
                 F2 => {
@@ -331,49 +303,13 @@ fn main() {
                     game_ui_data.game_board = GameBoard::new();
                     game_ui_data.player_inventory = PlayerInventory::new();
                     game_ui_data.unplaced_board_pieces = game_constants::BOARD_PIECES.to_vec();
-                    game_ui_data.active_player_action = PlayerAction::SetupBoard;
-                }
-                Num1 | Kp1 => {
-                    // Recruitment
-                    if let PlayerAction::ChooseAction = game_ui_data.active_player_action {
-                        game_ui_data.active_player_action = PlayerAction::Recruitment;
-                    }
-                }
-                Num2 | Kp2 => {
-                    // Movement
-                    if let PlayerAction::ChooseAction = game_ui_data.active_player_action {
-                        game_ui_data.active_player_action = PlayerAction::Movement;
-                    }
-                }
-                Num3 | Kp3 => {
-                    // Construction
-                    if let PlayerAction::ChooseAction = game_ui_data.active_player_action {
-                        game_ui_data.active_player_action = PlayerAction::Construction;
-                    }
-                }
-                Num4 | Kp4 => {
-                    // NewCity
-                    if let PlayerAction::ChooseAction = game_ui_data.active_player_action {
-                        game_ui_data.active_player_action = PlayerAction::NewCity;
-                    }
-                }
-                Num5 | Kp5 => {
-                    // Expedition
-                    if let PlayerAction::ChooseAction = game_ui_data.active_player_action {
-                        game_ui_data.active_player_action = PlayerAction::Expedition;
-                    }
-                }
-                Num6 | Kp6 => {
-                    // NobleTitle
-                    if let PlayerAction::ChooseAction = game_ui_data.active_player_action {
-                        game_ui_data.active_player_action = PlayerAction::NobleTitle;
-                    }
+                    active_player_action = &actions::SetupBoard{};
                 }
                 Backspace => {
                     // Undo action selection
-                    match game_ui_data.active_player_action {
-                        PlayerAction::Recruitment | PlayerAction::Movement | PlayerAction::Construction | PlayerAction::NewCity | PlayerAction::Expedition | PlayerAction::NobleTitle => {
-                            game_ui_data.active_player_action = PlayerAction::ChooseAction;
+                    match active_player_action.get_action_type() {
+                        actions::PlayerActionType::Recruitment | actions::PlayerActionType::Movement | actions::PlayerActionType::Construction | actions::PlayerActionType::NewCity | actions::PlayerActionType::Expedition | actions::PlayerActionType::NobleTitle => {
+                            active_player_action = &actions::ChooseAction{};
                         },
                         _ => {}
                     }
@@ -391,36 +327,7 @@ fn main() {
         game_ui_data.game_board.draw_board(&hw.gl, &shader_program);
 
         // Highlight the space underneath the mouse cursor
-        match game_ui_data.active_player_action {
-            PlayerAction::SetupBoard => {
-                match game_ui_data.three_pos_under_mouse {
-                    Some((pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c)) => {
-                        highlight_spaces_for_board_setup(
-                            &hw.gl,
-                            &shader_program,
-                            (pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c),
-                            &game_ui_data.game_board);
-                    }
-                    None => {}
-                }
-            }
-            PlayerAction::SetupCities => {
-                match game_ui_data.one_pos_under_mouse {
-                    Some(pos_under_mouse) => {
-                        highlight_space_for_city_setup(
-                            &hw.gl,
-                            &shader_program,
-                            &image_program,
-                            &svg_images.city_image,
-                            pos_under_mouse,
-                            &game_ui_data.game_board,
-                            (window_width, window_height));
-                    }
-                    None => {}
-                }
-            }
-            _ => {}
-        }
+        active_player_action.draw_highlight(&mut game_ui_data, &hw.gl, &shader_program, &image_program, &svg_images, (window_width, window_height));
 
         // Draw rectangular border around the game board area.
         GameBoard::draw_border(&hw.gl, &shader_program);
@@ -447,75 +354,7 @@ fn main() {
             drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: 0.85 }, drawing::ObjectOriginLocation::Left, 48, drawing::ColorSpec { r: 0xFF, g: 0xD7, b: 0x00 },
                 "Fast and Feudalist".to_string());
 
-            match game_ui_data.active_player_action {
-                PlayerAction::SetupBoard => {
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-                        "Game Setup".to_string());
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-                        "Lay board game pieces to build the map.".to_string());
-                }
-                PlayerAction::SetupCities => {
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-                        "City Setup".to_string());
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-                        "Place cities to determine your starting positions.".to_string());
-                }
-                PlayerAction::ChooseAction => {
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-                        "Choose Action".to_string());
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-                        "1. Recruitment  2. Movement  3. Construction  4. New City  5. Expedition  6. Noble Title".to_string());
-                }
-                PlayerAction::Recruitment => {
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-                        "Recruitment".to_string());
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-                        "Pick a city to add knights to.".to_string());
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.74 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-                        "Press Backspace to cancel.".to_string());
-                }
-                PlayerAction::Movement => {
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-                        "Movement".to_string());
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-                        "Select a knight to move.".to_string());
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.74 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-                        "Press Backspace to cancel.".to_string());
-                }
-                PlayerAction::Construction => {
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-                        "Construction".to_string());
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-                        "Select a knight to build with.".to_string());
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.74 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-                        "Press Backspace to cancel.".to_string());
-                }
-                PlayerAction::NewCity => {
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-                        "New City".to_string());
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-                        "Select a village to upgrade to a city.".to_string());
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.74 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-                        "Press Backspace to cancel.".to_string());
-                }
-                PlayerAction::Expedition => {
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-                        "Expedition".to_string());
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-                        "Select a board space on the edge of the map.".to_string());
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.74 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-                        "Press Backspace to cancel.".to_string());
-                }
-                PlayerAction::NobleTitle => {
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-                        "Noble Title".to_string());
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-                        "Press 'Y' to upgrade your noble title.".to_string());
-                    drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: 0.0, y: 0.74 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-                        "Press Backspace to cancel.".to_string());
-                }
-                PlayerAction::End => {}
-            }
+            active_player_action.draw_text(&mut text_drawing_baggage);
 
 
             {
