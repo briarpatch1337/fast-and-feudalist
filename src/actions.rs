@@ -2,6 +2,7 @@
 // This file has a ton of unused variables.  Don't warn about them.
 #![allow(unused_variables)]
 
+use std::cmp;
 use drawing;
 use gameboard;
 use GameUIData;
@@ -28,9 +29,13 @@ pub enum PlayerActionType
 
 // This is like defining an interface.
 pub trait PlayerActionControl {
+
     fn get_action_type(&self) -> PlayerActionType;
-    fn mouse_clicked(&self, game_ui_data: &mut GameUIData) -> &PlayerActionControl; // returns the next state
-    fn key_pressed(&self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> &PlayerActionControl; // returns the next state
+
+    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<Box<PlayerActionControl>>; // returns the next state, or None if the state hasn't changed
+
+    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<Box<PlayerActionControl>>; // returns the next state, or None if the state hasn't changed
+
     fn draw_highlight(
         &self,
         game_ui_data: &mut GameUIData,
@@ -39,39 +44,31 @@ pub trait PlayerActionControl {
         image_program: &render_gl::Program,
         images: &SVGImages,
         drawable_size: (u32, u32));
-    fn draw_text(&self, baggage: &mut drawing::TextDrawingBaggage);
+
+    fn draw_text(&self, baggage: &mut drawing::TextDrawingBaggage, game_ui_data: &mut GameUIData);
 }
 
+#[derive(Clone)]
 pub struct SetupBoard {}
-pub struct SetupCities {}
-pub struct ChooseAction {}
-pub struct Recruitment {}
-pub struct Movement {}
-pub struct Construction {}
-pub struct NewCity {}
-pub struct Expedition {}
-pub struct NobleTitle {}
-pub struct End {}
-
 impl PlayerActionControl for SetupBoard {
     fn get_action_type(&self) -> PlayerActionType {
         PlayerActionType::SetupBoard
     }
 
-    fn mouse_clicked(&self, game_ui_data: &mut GameUIData) -> &PlayerActionControl {
+    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<Box<PlayerActionControl>> {
         game_ui_data.drop_board_piece();
 
         const PIECES_PER_PLAYER: usize = 9;
 
         if game_ui_data.unplaced_board_pieces.len() <= gameboard::gameboard::game_constants::BOARD_PIECES.len() - PIECES_PER_PLAYER * game_ui_data.num_players as usize {
-            &SetupCities{}
+            Some(Box::new(SetupCities{}))
         } else {
-            self
+            None
         }
     }
 
-    fn key_pressed(&self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> &PlayerActionControl {
-        self
+    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<Box<PlayerActionControl>> {
+        None
     }
 
     fn draw_highlight(
@@ -95,7 +92,7 @@ impl PlayerActionControl for SetupBoard {
         }
     }
 
-    fn draw_text(&self, baggage: &mut drawing::TextDrawingBaggage) {
+    fn draw_text(&self, baggage: &mut drawing::TextDrawingBaggage, game_ui_data: &mut GameUIData) {
         drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
             "Game Setup".to_string());
         drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
@@ -103,23 +100,25 @@ impl PlayerActionControl for SetupBoard {
     }
 }
 
+#[derive(Clone)]
+pub struct SetupCities {}
 impl PlayerActionControl for SetupCities {
     fn get_action_type(&self) -> PlayerActionType {
         PlayerActionType::SetupCities
     }
 
-    fn mouse_clicked(&self, game_ui_data: &mut GameUIData) -> &PlayerActionControl {
+    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<Box<PlayerActionControl>> {
         game_ui_data.drop_city();
 
         if game_ui_data.game_board.num_cities() >= 3 {
-            &ChooseAction{}
+            Some(Box::new(ChooseAction{}))
         } else {
-            self
+            None
         }
     }
 
-    fn key_pressed(&self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> &PlayerActionControl {
-        self
+    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<Box<PlayerActionControl>> {
+        None
     }
 
     fn draw_highlight(
@@ -146,7 +145,7 @@ impl PlayerActionControl for SetupCities {
         }
     }
 
-    fn draw_text(&self, baggage: &mut drawing::TextDrawingBaggage) {
+    fn draw_text(&self, baggage: &mut drawing::TextDrawingBaggage, game_ui_data: &mut GameUIData) {
         drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
             "City Setup".to_string());
         drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
@@ -154,25 +153,30 @@ impl PlayerActionControl for SetupCities {
     }
 }
 
+#[derive(Clone)]
+pub struct ChooseAction {}
 impl PlayerActionControl for ChooseAction {
     fn get_action_type(&self) -> PlayerActionType {
         PlayerActionType::ChooseAction
     }
 
-    fn mouse_clicked(&self, game_ui_data: &mut GameUIData) -> &PlayerActionControl {
-        self
+    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<Box<PlayerActionControl>> {
+        None
     }
 
-    fn key_pressed(&self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> &PlayerActionControl {
+    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<Box<PlayerActionControl>> {
         use sdl2::keyboard::Scancode::*;
         match scancode {
-            Num1 | Kp1 => { &Recruitment{} }
-            Num2 | Kp2 => { &Movement{} }
-            Num3 | Kp3 => { &Construction{} }
-            Num4 | Kp4 => { &NewCity{} }
-            Num5 | Kp5 => { &Expedition{} }
-            Num6 | Kp6 => { &NobleTitle{} }
-            _ => { self }
+            Num1 | Kp1 => {
+                if Recruitment::is_action_viable(game_ui_data) { Some(Box::new(Recruitment{ selected_city: None })) }
+                else { None }
+            }
+            Num2 | Kp2 => { Some(Box::new(Movement{})) }
+            Num3 | Kp3 => { Some(Box::new(Construction{})) }
+            Num4 | Kp4 => { Some(Box::new(NewCity{})) }
+            Num5 | Kp5 => { Some(Box::new(Expedition{})) }
+            Num6 | Kp6 => { Some(Box::new(NobleTitle{})) }
+            _ => { None }
         }
     }
 
@@ -187,7 +191,7 @@ impl PlayerActionControl for ChooseAction {
     {
     }
 
-    fn draw_text(&self, baggage: &mut drawing::TextDrawingBaggage) {
+    fn draw_text(&self, baggage: &mut drawing::TextDrawingBaggage, game_ui_data: &mut GameUIData) {
         drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
             "Choose Action".to_string());
         drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
@@ -195,21 +199,90 @@ impl PlayerActionControl for ChooseAction {
     }
 }
 
+#[derive(Clone)]
+pub struct Recruitment { selected_city: Option<gameboard::gameboard::GameBoardSpacePos> }
+impl Recruitment {
+    fn is_action_viable(game_ui_data: &mut GameUIData) -> bool {
+        game_ui_data.player_inventory.num_knights > 0
+    }
+    fn is_space_viable(position: gameboard::gameboard::GameBoardSpacePos, game_ui_data: &mut GameUIData) -> bool {
+        for city in game_ui_data.game_board.cities() {
+            if city.position == position {
+                return true;
+            }
+        }
+        false
+    }
+    fn max_number_of_knights_to_add(position: gameboard::gameboard::GameBoardSpacePos, game_ui_data: &mut GameUIData) -> u8 {
+        match position.all_neighboring_positions().iter().find(|&&gameboard_pos| game_ui_data.game_board.get_board_space_type(gameboard_pos) == gameboard::gameboard::GameBoardSpaceType::Water) {
+            Some(_) => { cmp::min(game_ui_data.player_inventory.num_knights, 3) }
+            None => { cmp::min(game_ui_data.player_inventory.num_knights, 2) }
+        }
+    }
+    fn add_knights(&self, game_ui_data: &mut GameUIData, num_knights: usize) {
+        for i in 0..num_knights {
+            game_ui_data.game_board.add_knight(self.selected_city.unwrap(), game_ui_data.player_color.clone());
+        }
+    }
+}
 impl PlayerActionControl for Recruitment {
     fn get_action_type(&self) -> PlayerActionType {
         PlayerActionType::Recruitment
     }
 
-    fn mouse_clicked(&self, game_ui_data: &mut GameUIData) -> &PlayerActionControl {
-        self
+    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<Box<PlayerActionControl>> {
+        if let Some(pos_under_mouse) = game_ui_data.one_pos_under_mouse {
+            match game_ui_data.game_board.get_board_space_type(pos_under_mouse) {
+                gameboard::gameboard::GameBoardSpaceType::Void => {}
+                _ => {
+                    if Recruitment::is_space_viable(pos_under_mouse, game_ui_data) {
+                        self.selected_city = Some(pos_under_mouse);
+                    } else {
+                        self.selected_city = None;
+                    }
+                }
+            }
+        }
+        None
     }
 
-    fn key_pressed(&self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> &PlayerActionControl {
+    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<Box<PlayerActionControl>> {
         use sdl2::keyboard::Scancode::*;
         match scancode {
+            Num1 | Kp1 => {
+                if let Some(game_board_pos) = self.selected_city {
+                    assert!(Recruitment::max_number_of_knights_to_add(game_board_pos, game_ui_data) >= 1);
+                    self.add_knights(game_ui_data, 1);
+                    game_ui_data.player_inventory.num_knights -= 1;
+                    Some(Box::new(ChooseAction{}))
+                }
+                else { None }
+            }
+            Num2 | Kp2 => {
+                if let Some(game_board_pos) = self.selected_city {
+                    if Recruitment::max_number_of_knights_to_add(game_board_pos, game_ui_data) >= 2 {
+                        self.add_knights(game_ui_data, 2);
+                        game_ui_data.player_inventory.num_knights -= 2;
+                        Some(Box::new(ChooseAction{}))
+                    }
+                    else { None }
+                }
+                else { None }
+            }
+            Num3 | Kp3 => {
+                if let Some(game_board_pos) = self.selected_city {
+                    if Recruitment::max_number_of_knights_to_add(game_board_pos, game_ui_data) >= 3 {
+                        self.add_knights(game_ui_data, 3);
+                        game_ui_data.player_inventory.num_knights -= 3;
+                        Some(Box::new(ChooseAction{}))
+                    }
+                    else { None }
+                }
+                else { None }
+            }
             // Undo action selection
-            Backspace => { &ChooseAction{} }
-            _ => { self }
+            Backspace => { Some(Box::new(ChooseAction{})) }
+            _ => { None }
         }
     }
 
@@ -222,33 +295,58 @@ impl PlayerActionControl for Recruitment {
         images: &SVGImages,
         drawable_size: (u32, u32))
     {
+        if let Some(selected_city) = self.selected_city {
+            gameboard::gameboard_drawing::highlight_space_ok(gl, shader_program, selected_city);
+        }
+        if let Some(pos_under_mouse) = game_ui_data.one_pos_under_mouse {
+            match game_ui_data.game_board.get_board_space_type(pos_under_mouse) {
+                gameboard::gameboard::GameBoardSpaceType::Void => {}
+                _ => {
+                    if Recruitment::is_space_viable(pos_under_mouse, game_ui_data) {
+                        gameboard::gameboard_drawing::highlight_space_ok(gl, shader_program, pos_under_mouse);
+                    } else {
+                        gameboard::gameboard_drawing::highlight_space_bad(gl, shader_program, pos_under_mouse);
+                    }
+                }
+            }
+        }
     }
 
-    fn draw_text(&self, baggage: &mut drawing::TextDrawingBaggage) {
+    fn draw_text(&self, baggage: &mut drawing::TextDrawingBaggage, game_ui_data: &mut GameUIData) {
         drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
             "Recruitment".to_string());
-        drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-            "Pick a city to add knights to.".to_string());
+        match self.selected_city {
+            None => {
+                drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                    "Pick a city to add knights to.".to_string());
+            }
+            Some(selected_city) => {
+                drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                    format!("Enter the number of knights to recruit.  Max: {}", Recruitment::max_number_of_knights_to_add(selected_city, game_ui_data)));
+            }
+        }
         drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.74 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
             "Press Backspace to cancel.".to_string());
     }
 }
 
+#[derive(Clone)]
+pub struct Movement {}
 impl PlayerActionControl for Movement {
     fn get_action_type(&self) -> PlayerActionType {
         PlayerActionType::Movement
     }
 
-    fn mouse_clicked(&self, game_ui_data: &mut GameUIData) -> &PlayerActionControl {
-        self
+    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<Box<PlayerActionControl>> {
+        None
     }
 
-    fn key_pressed(&self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> &PlayerActionControl {
+    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<Box<PlayerActionControl>> {
         use sdl2::keyboard::Scancode::*;
         match scancode {
             // Undo action selection
-            Backspace => { &ChooseAction{} }
-            _ => { self }
+            Backspace => { Some(Box::new(ChooseAction{})) }
+            _ => { None }
         }
     }
 
@@ -263,7 +361,7 @@ impl PlayerActionControl for Movement {
     {
     }
 
-    fn draw_text(&self, baggage: &mut drawing::TextDrawingBaggage) {
+    fn draw_text(&self, baggage: &mut drawing::TextDrawingBaggage, game_ui_data: &mut GameUIData) {
         drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
             "Movement".to_string());
         drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
@@ -273,21 +371,23 @@ impl PlayerActionControl for Movement {
     }
 }
 
+#[derive(Clone)]
+pub struct Construction {}
 impl PlayerActionControl for Construction {
     fn get_action_type(&self) -> PlayerActionType {
         PlayerActionType::Construction
     }
 
-    fn mouse_clicked(&self, game_ui_data: &mut GameUIData) -> &PlayerActionControl {
-        self
+    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<Box<PlayerActionControl>> {
+        None
     }
 
-    fn key_pressed(&self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> &PlayerActionControl {
+    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<Box<PlayerActionControl>> {
         use sdl2::keyboard::Scancode::*;
         match scancode {
             // Undo action selection
-            Backspace => { &ChooseAction{} }
-            _ => { self }
+            Backspace => { Some(Box::new(ChooseAction{})) }
+            _ => { None }
         }
     }
 
@@ -302,7 +402,7 @@ impl PlayerActionControl for Construction {
     {
     }
 
-    fn draw_text(&self, baggage: &mut drawing::TextDrawingBaggage) {
+    fn draw_text(&self, baggage: &mut drawing::TextDrawingBaggage, game_ui_data: &mut GameUIData) {
         drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
             "Construction".to_string());
         drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
@@ -312,21 +412,23 @@ impl PlayerActionControl for Construction {
     }
 }
 
+#[derive(Clone)]
+pub struct NewCity {}
 impl PlayerActionControl for NewCity {
     fn get_action_type(&self) -> PlayerActionType {
         PlayerActionType::NewCity
     }
 
-    fn mouse_clicked(&self, game_ui_data: &mut GameUIData) -> &PlayerActionControl {
-        self
+    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<Box<PlayerActionControl>> {
+        None
     }
 
-    fn key_pressed(&self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> &PlayerActionControl {
+    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<Box<PlayerActionControl>> {
         use sdl2::keyboard::Scancode::*;
         match scancode {
             // Undo action selection
-            Backspace => { &ChooseAction{} }
-            _ => { self }
+            Backspace => { Some(Box::new(ChooseAction{})) }
+            _ => { None }
         }
     }
 
@@ -341,7 +443,7 @@ impl PlayerActionControl for NewCity {
     {
     }
 
-    fn draw_text(&self, baggage: &mut drawing::TextDrawingBaggage) {
+    fn draw_text(&self, baggage: &mut drawing::TextDrawingBaggage, game_ui_data: &mut GameUIData) {
         drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
             "New City".to_string());
         drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
@@ -351,21 +453,23 @@ impl PlayerActionControl for NewCity {
     }
 }
 
+#[derive(Clone)]
+pub struct Expedition {}
 impl PlayerActionControl for Expedition {
     fn get_action_type(&self) -> PlayerActionType {
         PlayerActionType::Expedition
     }
 
-    fn mouse_clicked(&self, game_ui_data: &mut GameUIData) -> &PlayerActionControl {
-        self
+    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<Box<PlayerActionControl>> {
+        None
     }
 
-    fn key_pressed(&self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> &PlayerActionControl {
+    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<Box<PlayerActionControl>> {
         use sdl2::keyboard::Scancode::*;
         match scancode {
             // Undo action selection
-            Backspace => { &ChooseAction{} }
-            _ => { self }
+            Backspace => { Some(Box::new(ChooseAction{})) }
+            _ => { None }
         }
     }
 
@@ -380,7 +484,7 @@ impl PlayerActionControl for Expedition {
     {
     }
 
-    fn draw_text(&self, baggage: &mut drawing::TextDrawingBaggage) {
+    fn draw_text(&self, baggage: &mut drawing::TextDrawingBaggage, game_ui_data: &mut GameUIData) {
         drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
             "Expedition".to_string());
         drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
@@ -390,21 +494,23 @@ impl PlayerActionControl for Expedition {
     }
 }
 
+#[derive(Clone)]
+pub struct NobleTitle {}
 impl PlayerActionControl for NobleTitle {
     fn get_action_type(&self) -> PlayerActionType {
         PlayerActionType::NobleTitle
     }
 
-    fn mouse_clicked(&self, game_ui_data: &mut GameUIData) -> &PlayerActionControl {
-        self
+    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<Box<PlayerActionControl>> {
+        None
     }
 
-    fn key_pressed(&self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> &PlayerActionControl {
+    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<Box<PlayerActionControl>> {
         use sdl2::keyboard::Scancode::*;
         match scancode {
             // Undo action selection
-            Backspace => { &ChooseAction{} }
-            _ => { self }
+            Backspace => { Some(Box::new(ChooseAction{})) }
+            _ => { None }
         }
     }
 
@@ -419,7 +525,7 @@ impl PlayerActionControl for NobleTitle {
     {
     }
 
-    fn draw_text(&self, baggage: &mut drawing::TextDrawingBaggage) {
+    fn draw_text(&self, baggage: &mut drawing::TextDrawingBaggage, game_ui_data: &mut GameUIData) {
         drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
             "Noble Title".to_string());
         drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
@@ -428,3 +534,6 @@ impl PlayerActionControl for NobleTitle {
             "Press Backspace to cancel.".to_string());
     }
 }
+
+#[derive(Clone)]
+pub struct End {}

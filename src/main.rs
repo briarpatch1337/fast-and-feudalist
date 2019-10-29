@@ -145,6 +145,7 @@ impl GameUIData {
                 _ => {
                     if self.game_board.space_ok_for_city(pos_under_mouse) {
                         self.game_board.add_city(pos_under_mouse, self.player_color.clone());
+                        self.game_board.add_knight(pos_under_mouse, self.player_color.clone());
                         self.player_inventory.num_cities -= 1;
                         self.player_inventory.num_knights -= 1;
                     }
@@ -267,7 +268,7 @@ fn main() {
     // SVG images
     let svg_images = SVGImages::new(ddpi, window_width, player_color_spec.clone());
 
-    let mut active_player_action: &actions::PlayerActionControl = &actions::SetupBoard {};
+    let mut active_player_action: Box<actions::PlayerActionControl> = Box::new(actions::SetupBoard {});
 
     // Loop with label 'main (exited by the break 'main statement)
     'main: loop {
@@ -282,20 +283,30 @@ fn main() {
             match active_player_action.get_action_type() {
                 actions::PlayerActionType::SetupBoard => {
                     game_ui_data.three_pos_under_mouse = mouse_pos_to_board_piece_destination(event_feedback.current_mouse_pos, (window_width, window_height));
+                    game_ui_data.one_pos_under_mouse = None;
                 }
-                actions::PlayerActionType::SetupCities => {
+                // Calculate the position under the mouse if the player is making an action that involves a space on the board.
+                actions::PlayerActionType::SetupCities | actions::PlayerActionType::Recruitment | actions::PlayerActionType::Movement | actions::PlayerActionType::Construction | actions::PlayerActionType::NewCity | actions::PlayerActionType::Expedition => {
+                    game_ui_data.three_pos_under_mouse = None;
                     game_ui_data.one_pos_under_mouse = mouse_pos_to_game_board_pos(event_feedback.current_mouse_pos, (window_width, window_height));
                 }
-                _ => {}
+                _ => {
+                    game_ui_data.three_pos_under_mouse = None;
+                    game_ui_data.one_pos_under_mouse = None;
+                }
             }
         }
 
         if event_feedback.mouse_clicked {
-            active_player_action = active_player_action.mouse_clicked(&mut game_ui_data);
+            if let Some(new_action) = active_player_action.mouse_clicked(&mut game_ui_data) {
+                active_player_action = new_action;
+            }
         }
 
         if event_feedback.key_pressed {
-            active_player_action = active_player_action.key_pressed(&mut game_ui_data, &event_feedback.last_key_pressed_scancode.unwrap());
+            if let Some(new_action) = active_player_action.key_pressed(&mut game_ui_data, &event_feedback.last_key_pressed_scancode.unwrap()) {
+                active_player_action = new_action;
+            }
             use sdl2::keyboard::Scancode::*;
             match event_feedback.last_key_pressed_scancode.unwrap() {
                 F2 => {
@@ -303,13 +314,13 @@ fn main() {
                     game_ui_data.game_board = GameBoard::new();
                     game_ui_data.player_inventory = PlayerInventory::new();
                     game_ui_data.unplaced_board_pieces = game_constants::BOARD_PIECES.to_vec();
-                    active_player_action = &actions::SetupBoard{};
+                    active_player_action = Box::new(actions::SetupBoard{});
                 }
                 Backspace => {
                     // Undo action selection
                     match active_player_action.get_action_type() {
                         actions::PlayerActionType::Recruitment | actions::PlayerActionType::Movement | actions::PlayerActionType::Construction | actions::PlayerActionType::NewCity | actions::PlayerActionType::Expedition | actions::PlayerActionType::NobleTitle => {
-                            active_player_action = &actions::ChooseAction{};
+                            active_player_action = Box::new(actions::ChooseAction{});
                         },
                         _ => {}
                     }
@@ -354,7 +365,7 @@ fn main() {
             drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.95, y: 0.85 }, drawing::ObjectOriginLocation::Left, 48, drawing::ColorSpec { r: 0xFF, g: 0xD7, b: 0x00 },
                 "Fast and Feudalist".to_string());
 
-            active_player_action.draw_text(&mut text_drawing_baggage);
+            active_player_action.draw_text(&mut text_drawing_baggage, &mut game_ui_data);
 
 
             {
@@ -398,10 +409,11 @@ fn main() {
                 game_ui_data.player_inventory.num_villages.to_string());
             drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.36 }, drawing::ObjectOriginLocation::Left, 24, player_color_spec.clone(),
                 game_ui_data.player_inventory.num_knights.to_string());
-        }
 
-        // Draw cities
-        game_ui_data.game_board.draw_cities(&hw.gl, &image_program, (window_width, window_height), &svg_images.city_image, &svg_images.knight_image);
+            // Draw player items
+            game_ui_data.game_board.draw_cities(&hw.gl, &image_program, (window_width, window_height), &svg_images.city_image);
+            game_ui_data.game_board.draw_knights(&hw.gl, &image_program, (window_width, window_height), &svg_images.knight_image, &mut text_drawing_baggage, player_color_spec.clone());
+        }
 
         // Swap the window pixels with what we have just rendered
         hw.window.gl_swap_window();

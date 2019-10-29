@@ -14,7 +14,7 @@ pub enum GameBoardSpaceType
     Field
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GameBoardSpacePos {
     pub x_pos: u8,
     pub y_pos: u8
@@ -95,6 +95,18 @@ impl GameBoardSpacePos {
         } else {
             None
         }
+    }
+
+    // Return a vector of all neighboring positions.
+    pub fn all_neighboring_positions(&self) -> Vec<GameBoardSpacePos> {
+        let mut ret_val = Vec::<GameBoardSpacePos>::new();
+        if let Some(game_board_pos) = self.up()         { ret_val.push(game_board_pos) }
+        if let Some(game_board_pos) = self.up_right()   { ret_val.push(game_board_pos) }
+        if let Some(game_board_pos) = self.down_right() { ret_val.push(game_board_pos) }
+        if let Some(game_board_pos) = self.down()       { ret_val.push(game_board_pos) }
+        if let Some(game_board_pos) = self.down_left()  { ret_val.push(game_board_pos) }
+        if let Some(game_board_pos) = self.up_left()    { ret_val.push(game_board_pos) }
+        ret_val
     }
 }
 
@@ -181,21 +193,23 @@ pub mod game_constants {
 }
 
 
-pub struct CityInfo {
+pub struct ItemInfo {
     pub position: GameBoardSpacePos,
     owner: PlayerColor
 }
 
 pub struct GameBoard {
     board_state: [[GameBoardSpaceType; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT],
-    cities: std::vec::Vec<CityInfo>
+    cities: std::vec::Vec<ItemInfo>,
+    knights: std::vec::Vec<ItemInfo>
 }
 
 impl GameBoard {
     pub fn new() -> GameBoard {
         GameBoard {
             board_state: [[GameBoardSpaceType::Void; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT],
-            cities: std::vec::Vec::<CityInfo>::new()
+            cities: std::vec::Vec::<ItemInfo>::new(),
+            knights: std::vec::Vec::<ItemInfo>::new()
         }
     }
 
@@ -207,7 +221,7 @@ impl GameBoard {
         self.board_state[position.y_pos as usize][position.x_pos as usize] = space_type;
     }
 
-    pub fn cities(&self) -> std::slice::Iter<CityInfo> {
+    pub fn cities(&self) -> std::slice::Iter<ItemInfo> {
         self.cities.iter()
     }
 
@@ -216,7 +230,19 @@ impl GameBoard {
     }
 
     pub fn add_city(&mut self, position: GameBoardSpacePos, owner: PlayerColor) {
-        self.cities.push(CityInfo{ position: position, owner: owner });
+        self.cities.push(ItemInfo{ position: position, owner: owner });
+    }
+
+    pub fn knights(&self) -> std::slice::Iter<ItemInfo> {
+        self.knights.iter()
+    }
+
+    pub fn num_knights(&self) -> usize {
+        self.knights.len()
+    }
+
+    pub fn add_knight(&mut self, position: GameBoardSpacePos, owner: PlayerColor) {
+        self.knights.push(ItemInfo{ position: position, owner: owner });
     }
 
     pub fn space_ok_for_city(&self, position: GameBoardSpacePos) -> bool {
