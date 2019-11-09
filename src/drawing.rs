@@ -134,7 +134,7 @@ pub fn draw_point(gl: &gl::Gl, shader_program: &render_gl::Program) {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct ColorSpec {
     pub r: u8,
     pub g: u8,

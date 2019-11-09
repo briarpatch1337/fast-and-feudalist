@@ -222,7 +222,7 @@ impl Recruitment {
     }
     fn add_knights(&self, game_ui_data: &mut GameUIData, num_knights: usize) {
         for i in 0..num_knights {
-            game_ui_data.game_board.add_knight(self.selected_city.unwrap(), game_ui_data.player_color.clone());
+            game_ui_data.game_board.add_knight(self.selected_city.unwrap(), game_ui_data.player_color);
         }
     }
 }
