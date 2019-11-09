@@ -281,8 +281,18 @@ impl PlayerActionControl for Recruitment {
                 }
                 else { None }
             }
-            // Undo action selection
-            Backspace => { Some(Box::new(ChooseAction{})) }
+
+            Backspace => {
+                if self.selected_city.is_some() {
+                    // Undo city selection
+                    self.selected_city = None;
+                    None
+                }
+                else {
+                    // Undo action selection
+                    Some(Box::new(ChooseAction{}))
+                }
+            }
             _ => { None }
         }
     }
