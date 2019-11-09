@@ -5,6 +5,7 @@
 use std::cmp;
 use drawing;
 use gameboard;
+use gameboard::gameboard::GameBoardSpacePos;
 use GameUIData;
 use gl;
 use highlight_space_for_city_setup;
@@ -200,12 +201,12 @@ impl PlayerActionControl for ChooseAction {
 }
 
 #[derive(Clone)]
-pub struct Recruitment { selected_city: Option<gameboard::gameboard::GameBoardSpacePos> }
+pub struct Recruitment { selected_city: Option<GameBoardSpacePos> }
 impl Recruitment {
     fn is_action_viable(game_ui_data: &mut GameUIData) -> bool {
         game_ui_data.player_inventory.num_knights > 0
     }
-    fn is_space_viable(position: gameboard::gameboard::GameBoardSpacePos, game_ui_data: &mut GameUIData) -> bool {
+    fn is_space_viable(position: GameBoardSpacePos, game_ui_data: &mut GameUIData) -> bool {
         for city in game_ui_data.game_board.cities() {
             if city.position == position {
                 return true;
@@ -213,7 +214,7 @@ impl Recruitment {
         }
         false
     }
-    fn max_number_of_knights_to_add(position: gameboard::gameboard::GameBoardSpacePos, game_ui_data: &mut GameUIData) -> u8 {
+    fn max_number_of_knights_to_add(position: GameBoardSpacePos, game_ui_data: &mut GameUIData) -> u8 {
         match position.all_neighboring_positions().iter().find(|&&gameboard_pos| game_ui_data.game_board.get_board_space_type(gameboard_pos) == gameboard::gameboard::GameBoardSpaceType::Water) {
             Some(_) => { cmp::min(game_ui_data.player_inventory.num_knights, 3) }
             None => { cmp::min(game_ui_data.player_inventory.num_knights, 2) }
