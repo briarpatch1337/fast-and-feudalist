@@ -195,7 +195,7 @@ pub mod game_constants {
 
 pub struct ItemInfo {
     pub position: GameBoardSpacePos,
-    owner: PlayerColor
+    pub owner: PlayerColor
 }
 
 pub struct GameBoard {
