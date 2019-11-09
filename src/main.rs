@@ -316,15 +316,6 @@ fn main() {
                     game_ui_data.unplaced_board_pieces = game_constants::BOARD_PIECES.to_vec();
                     active_player_action = Box::new(actions::SetupBoard{});
                 }
-                Backspace => {
-                    // Undo action selection
-                    match active_player_action.get_action_type() {
-                        actions::PlayerActionType::Recruitment | actions::PlayerActionType::Movement | actions::PlayerActionType::Construction | actions::PlayerActionType::NewCity | actions::PlayerActionType::Expedition | actions::PlayerActionType::NobleTitle => {
-                            active_player_action = Box::new(actions::ChooseAction{});
-                        },
-                        _ => {}
-                    }
-                }
                 _ => {}
             }
         }
