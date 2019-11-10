@@ -282,19 +282,12 @@ fn main() {
         if event_feedback.mouse_moved {
             match active_player_action.get_action_type() {
                 actions::PlayerActionType::SetupBoard => {
+                    // Only do the "three pos" calculation during the SetupBoard stage.
                     game_ui_data.three_pos_under_mouse = mouse_pos_to_board_piece_destination(event_feedback.current_mouse_pos, (window_width, window_height));
-                    game_ui_data.one_pos_under_mouse = None;
                 }
-                // Calculate the position under the mouse if the player is making an action that involves a space on the board.
-                actions::PlayerActionType::SetupCities | actions::PlayerActionType::Recruitment | actions::PlayerActionType::Movement | actions::PlayerActionType::Construction | actions::PlayerActionType::NewCity | actions::PlayerActionType::Expedition => {
-                    game_ui_data.three_pos_under_mouse = None;
-                    game_ui_data.one_pos_under_mouse = mouse_pos_to_game_board_pos(event_feedback.current_mouse_pos, (window_width, window_height));
-                }
-                _ => {
-                    game_ui_data.three_pos_under_mouse = None;
-                    game_ui_data.one_pos_under_mouse = None;
-                }
+                _ => {}
             }
+            game_ui_data.one_pos_under_mouse = mouse_pos_to_game_board_pos(event_feedback.current_mouse_pos, (window_width, window_height));
         }
 
         if event_feedback.mouse_clicked {
