@@ -172,7 +172,10 @@ impl PlayerActionControl for ChooseAction {
                 if Recruitment::is_action_viable(game_ui_data) { Some(Box::new(Recruitment{ selected_city: None })) }
                 else { None }
             }
-            Num2 | Kp2 => { Some(Box::new(Movement{})) }
+            Num2 | Kp2 => {
+                if Movement::is_action_viable(game_ui_data) { Some(Box::new(Movement{ selected_knight: None, first_move: None })) }
+                else { None }
+            }
             Num3 | Kp3 => { Some(Box::new(Construction{})) }
             Num4 | Kp4 => { Some(Box::new(NewCity{})) }
             Num5 | Kp5 => { Some(Box::new(Expedition{})) }
@@ -342,21 +345,119 @@ impl PlayerActionControl for Recruitment {
 }
 
 #[derive(Clone)]
-pub struct Movement {}
+pub struct Movement {
+    selected_knight: Option<GameBoardSpacePos>,
+    first_move: Option<(GameBoardSpacePos, GameBoardSpacePos)>
+}
+impl Movement {
+    fn is_action_viable(game_ui_data: &mut GameUIData) -> bool {
+        let knights = game_ui_data.game_board.knights();
+        let player_color = game_ui_data.player_color;
+        let movable_knights = knights.filter(|ref knight| knight.owner == player_color && Movement::is_from_space_viable(knight.position, game_ui_data, None));
+        let movable_knight_count = movable_knights.count();
+        movable_knight_count > 0
+    }
+
+    fn is_from_space_viable(from_pos: GameBoardSpacePos, game_ui_data: &GameUIData, first_move: Option<(GameBoardSpacePos, GameBoardSpacePos)>) -> bool {
+        let game_board = &game_ui_data.game_board;
+        let num_owned_knights_in_from_pos =
+            game_board.knights()
+                      .filter(|ref knight| knight.position == from_pos && knight.owner == game_ui_data.player_color)
+                      .count();
+
+        if let Some((first_move_from_pos, first_move_to_pos)) = first_move {
+            // If the first knight has been moved to this position, and there is only one knight now at this position,
+            // then there is no knight that can be moved from this position. (you cannot move a single knight twice in a turn)
+            if first_move_to_pos == from_pos && num_owned_knights_in_from_pos == 1 {
+                return false
+            }
+        }
+        if num_owned_knights_in_from_pos > 0 {
+            // There are knights in this position that can be moved.
+            // Confirm that there is at least one neighboring position that could potentially be moved into.
+            let neighboring_positions = from_pos.all_neighboring_positions();
+            neighboring_positions.iter().any(|&to_pos| game_board.space_ok_for_knight(to_pos, game_ui_data.player_color))
+        }
+        else {
+            false
+        }
+    }
+
+    fn is_to_space_viable(from_pos: GameBoardSpacePos, to_pos: GameBoardSpacePos, game_ui_data: &GameUIData) -> bool {
+        to_pos.is_neighbor(from_pos) && game_ui_data.game_board.space_ok_for_knight(to_pos, game_ui_data.player_color)
+    }
+
+}
+
 impl PlayerActionControl for Movement {
     fn get_action_type(&self) -> PlayerActionType {
         PlayerActionType::Movement
     }
 
     fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<Box<PlayerActionControl>> {
+        if let Some(pos_under_mouse) = game_ui_data.one_pos_under_mouse {
+            if let Some(from_pos) = self.selected_knight {
+                // Knight has been selected.
+                // Move the knight to the space under the cursor if it is a viable to space.
+                let to_pos = pos_under_mouse;
+                if Movement::is_to_space_viable(from_pos, to_pos, game_ui_data) && to_pos.is_neighbor(from_pos) {
+                    game_ui_data.game_board.move_knight(from_pos, to_pos, game_ui_data.player_color).unwrap();
+                    if self.first_move.is_some() {
+                        // Already moved once, so turn is over.
+                        return Some(Box::new(ChooseAction{}))
+                    }
+                    else {
+                        // Moved first knight.
+                        self.first_move = Some((from_pos, to_pos));
+                        self.selected_knight = None;
+                    }
+                }
+            }
+            else {
+                // Knight hasn't been selected yet.
+                // Select the knight under the cursor if it is a viable from space.
+                let from_pos = pos_under_mouse;
+                if Movement::is_from_space_viable(from_pos, game_ui_data, self.first_move) {
+                    self.selected_knight = Some(from_pos);
+                } else {
+                    self.selected_knight = None;
+                }
+            }
+        }
         None
     }
 
     fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<Box<PlayerActionControl>> {
         use sdl2::keyboard::Scancode::*;
         match scancode {
-            // Undo action selection
-            Backspace => { Some(Box::new(ChooseAction{})) }
+
+            Backspace => {
+                if self.first_move.is_some() && self.selected_knight.is_none() {
+                    // Undo first move
+                    let (prev_from_pos, prev_to_pos) = self.first_move.unwrap();
+                    game_ui_data.game_board.move_knight(prev_to_pos, prev_from_pos, game_ui_data.player_color).unwrap();
+                    self.first_move = None;
+                    None
+                }
+                else if self.selected_knight.is_some() {
+                    // Undo knight selection
+                    self.selected_knight = None;
+                    None
+                }
+                else {
+                    // Undo action selection
+                    Some(Box::new(ChooseAction{}))
+                }
+            }
+            Y => {
+                if self.first_move.is_some() {
+                    // Finish turn
+                    Some(Box::new(ChooseAction{}))
+                }
+                else {
+                    None
+                }
+            }
             _ => { None }
         }
     }
@@ -370,15 +471,73 @@ impl PlayerActionControl for Movement {
         images: &SVGImages,
         drawable_size: (u32, u32))
     {
+        use gameboard::gameboard::GameBoardSpaceType;
+
+        if let Some(from_pos) = self.selected_knight {
+            // Knight has been selected.
+            // Highlight the selected knight.
+            gameboard::gameboard_drawing::highlight_space_ok(gl, shader_program, from_pos);
+            // Highlight spaces indicating whether it is ok to move the selected knight to the space underneath the mouse.
+            if let Some(to_pos) = game_ui_data.one_pos_under_mouse {
+                match game_ui_data.game_board.get_board_space_type(to_pos) {
+                    GameBoardSpaceType::Void => {} //Don't highlight ok or bad if this is a void space.
+                    _ => {
+                        // Confirm that there is a move that can be made to this space.
+                        if Movement::is_to_space_viable(from_pos, to_pos, game_ui_data) {
+                            gameboard::gameboard_drawing::highlight_space_ok(gl, shader_program, to_pos);
+                        } else {
+                            gameboard::gameboard_drawing::highlight_space_bad(gl, shader_program, to_pos);
+                        }
+                    }
+                }
+            }
+        }
+        else {
+            // Knight hasn't been selected yet.
+            // Highlight spaces indicating whether it is ok to select a knight at the space underneath the mouse.
+            if let Some(from_pos) = game_ui_data.one_pos_under_mouse {
+                match game_ui_data.game_board.get_board_space_type(from_pos) {
+                    GameBoardSpaceType::Void => { } //Don't highlight ok or bad if this is a void space.
+                    _ => {
+                        // Confirm that there is a move that can be made from this space.
+                        if Movement::is_from_space_viable(from_pos, game_ui_data, self.first_move) {
+                            gameboard::gameboard_drawing::highlight_space_ok(gl, shader_program, from_pos);
+                        } else {
+                            gameboard::gameboard_drawing::highlight_space_bad(gl, shader_program, from_pos);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fn draw_text(&self, baggage: &mut drawing::TextDrawingBaggage, game_ui_data: &mut GameUIData) {
-        drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-            "Movement".to_string());
-        drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-            "Select a knight to move.".to_string());
-        drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.74 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-            "Press Backspace to cancel.".to_string());
+        if let Some(selected_knight) = self.selected_knight {
+            // Knight has been selected.
+            drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                "Movement".to_string());
+            drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                "Select a space to move to.".to_string());
+            drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.74 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                "Press Backspace to cancel.".to_string());
+        }
+        else {
+            // Knight hasn't been selected yet.
+            drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.90 }, drawing::ObjectOriginLocation::Center, 24, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                "Movement".to_string());
+            if self.first_move.is_none() {
+                drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                    "Select a knight to move.".to_string());
+                drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.74 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                    "Press Backspace to cancel.".to_string());
+            }
+            else {
+                drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                    "Select a second knight to move.".to_string());
+                drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.74 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
+                    "Press Backspace to cancel, press Y to finish your turn.".to_string());
+            }
+        }
     }
 }
 

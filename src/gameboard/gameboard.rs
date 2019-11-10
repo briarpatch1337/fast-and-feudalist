@@ -1,6 +1,8 @@
 
 use drawing;
 use drawing_constants;
+use std::error;
+use std::fmt;
 use PlayerColor;
 
 #[derive(Copy,Clone,PartialEq)]
@@ -108,6 +110,10 @@ impl GameBoardSpacePos {
         if let Some(game_board_pos) = self.up_left()    { ret_val.push(game_board_pos) }
         ret_val
     }
+
+    pub fn is_neighbor(&self, other_pos: GameBoardSpacePos) -> bool {
+        self.all_neighboring_positions().iter().any(|&neighbor_position| neighbor_position == other_pos)
+    }
 }
 
 pub fn game_board_pos_to_drawing_pos(position: GameBoardSpacePos) -> drawing::PositionSpec {
@@ -198,6 +204,19 @@ pub struct UnitInfo {
     pub owner: PlayerColor
 }
 
+#[derive(Debug)]
+pub struct KnightMoveError;
+impl fmt::Display for KnightMoveError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Invalid knight movement attempted")
+    }
+}
+impl error::Error for KnightMoveError {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        None
+    }
+}
+
 pub struct GameBoard {
     board_state: [[GameBoardSpaceType; game_constants::MAX_BOARD_WIDTH]; game_constants::MAX_BOARD_HEIGHT],
     cities: std::vec::Vec<UnitInfo>,
@@ -233,18 +252,6 @@ impl GameBoard {
         self.cities.push(UnitInfo{ position: position, owner: owner });
     }
 
-    pub fn knights(&self) -> std::slice::Iter<UnitInfo> {
-        self.knights.iter()
-    }
-
-    pub fn num_knights(&self) -> usize {
-        self.knights.len()
-    }
-
-    pub fn add_knight(&mut self, position: GameBoardSpacePos, owner: PlayerColor) {
-        self.knights.push(UnitInfo{ position: position, owner: owner });
-    }
-
     pub fn space_ok_for_city(&self, position: GameBoardSpacePos) -> bool {
         match self.get_board_space_type(position) {
             GameBoardSpaceType::Void | GameBoardSpaceType::Water | GameBoardSpaceType::Forest => {
@@ -268,4 +275,51 @@ impl GameBoard {
             }
         }
     }
+
+    pub fn knights(&self) -> std::slice::Iter<UnitInfo> {
+        self.knights.iter()
+    }
+
+    pub fn num_knights(&self) -> usize {
+        self.knights.len()
+    }
+
+    pub fn add_knight(&mut self, position: GameBoardSpacePos, owner: PlayerColor) {
+        self.knights.push(UnitInfo{ position: position, owner: owner });
+    }
+
+    pub fn move_knight(&mut self, from_pos: GameBoardSpacePos, to_pos: GameBoardSpacePos, owner: PlayerColor) -> Result<(), KnightMoveError> {
+        // Return KnightMoveError if there isn't a knight at from_pos, or if the to_pos is not ok to move a knight into.
+        // simply iterating over the vector knights... Think about tracking the knights at each position a different way.
+        if let Some(knight_index) = self.knights.iter().position(|ref knight| knight.position == from_pos && knight.owner == owner) {
+            if self.space_ok_for_knight(to_pos, owner) {
+                // reassign position
+                self.knights[knight_index].position = to_pos;
+                Ok(())
+            }
+            else {
+                Err(KnightMoveError{})
+            }
+        }
+        else {
+            Err(KnightMoveError{})
+        }
+    }
+
+    pub fn space_ok_for_knight(&self, position: GameBoardSpacePos, owner: PlayerColor) -> bool {
+        let opposing_unit_count = self.opposing_unit_count_at_pos(position, owner);
+        let space_type = self.get_board_space_type(position);
+
+        use GameBoardSpaceType::*;
+        match space_type {
+            Void | Water => {false}
+            Mountain => { opposing_unit_count == 0 }
+            Forest | Plains | Field => { opposing_unit_count < 2 }
+        }
+    }
+
+    fn opposing_unit_count_at_pos(&self, position: GameBoardSpacePos, owner: PlayerColor) -> usize {
+        self.knights.iter().filter(|ref knight| knight.position == position && knight.owner != owner).count()
+    }
+
 }
