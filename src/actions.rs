@@ -137,7 +137,7 @@ impl PlayerActionControl for SetupCities {
                     &gl,
                     &shader_program,
                     &image_program,
-                    &images.city_image,
+                    &images.get_city_image(&game_ui_data.player_color),
                     pos_under_mouse,
                     &game_ui_data.game_board,
                     drawable_size);
