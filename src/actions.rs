@@ -216,7 +216,7 @@ impl Recruitment {
     }
     fn is_space_viable(position: GameBoardSpacePos, game_ui_data: &mut GameUIData) -> bool {
         for city in game_ui_data.game_board.cities() {
-            if city.position == position {
+            if city.position == position && city.owner == game_ui_data.player_color {
                 return true;
             }
         }
