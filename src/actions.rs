@@ -212,7 +212,8 @@ impl PlayerActionControl for ChooseAction {
 pub struct Recruitment { selected_city: Option<GameBoardSpacePos> }
 impl Recruitment {
     fn is_action_viable(game_ui_data: &mut GameUIData) -> bool {
-        game_ui_data.player_inventory.num_knights > 0
+        let player_inventory = game_ui_data.get_mut_active_player_inventory();
+        player_inventory.num_knights > 0
     }
     fn is_space_viable(position: GameBoardSpacePos, game_ui_data: &mut GameUIData) -> bool {
         for city in game_ui_data.game_board.cities() {
@@ -223,9 +224,10 @@ impl Recruitment {
         false
     }
     fn max_number_of_knights_to_add(position: GameBoardSpacePos, game_ui_data: &mut GameUIData) -> u8 {
+        let player_inventory = game_ui_data.get_active_player_inventory();
         match position.all_neighboring_positions().iter().find(|&&gameboard_pos| game_ui_data.game_board.get_board_space_type(gameboard_pos) == gameboard::gameboard::GameBoardSpaceType::Water) {
-            Some(_) => { cmp::min(game_ui_data.player_inventory.num_knights, 3) }
-            None => { cmp::min(game_ui_data.player_inventory.num_knights, 2) }
+            Some(_) => { cmp::min(player_inventory.num_knights, 3) }
+            None => { cmp::min(player_inventory.num_knights, 2) }
         }
     }
     fn add_knights(&self, game_ui_data: &mut GameUIData, num_knights: usize) {
@@ -262,7 +264,7 @@ impl PlayerActionControl for Recruitment {
                 if let Some(game_board_pos) = self.selected_city {
                     assert!(Recruitment::max_number_of_knights_to_add(game_board_pos, game_ui_data) >= 1);
                     self.add_knights(game_ui_data, 1);
-                    game_ui_data.player_inventory.num_knights -= 1;
+                    game_ui_data.get_mut_active_player_inventory().num_knights -= 1;
                     Some(StateTransition{next_action: Box::new(ChooseAction{}), turn_completed: true})
                 }
                 else { None }
@@ -271,7 +273,7 @@ impl PlayerActionControl for Recruitment {
                 if let Some(game_board_pos) = self.selected_city {
                     if Recruitment::max_number_of_knights_to_add(game_board_pos, game_ui_data) >= 2 {
                         self.add_knights(game_ui_data, 2);
-                        game_ui_data.player_inventory.num_knights -= 2;
+                        game_ui_data.get_mut_active_player_inventory().num_knights -= 2;
                         Some(StateTransition{next_action: Box::new(ChooseAction{}), turn_completed: true})
                     }
                     else { None }
@@ -282,7 +284,7 @@ impl PlayerActionControl for Recruitment {
                 if let Some(game_board_pos) = self.selected_city {
                     if Recruitment::max_number_of_knights_to_add(game_board_pos, game_ui_data) >= 3 {
                         self.add_knights(game_ui_data, 3);
-                        game_ui_data.player_inventory.num_knights -= 3;
+                        game_ui_data.get_mut_active_player_inventory().num_knights -= 3;
                         Some(StateTransition{next_action: Box::new(ChooseAction{}), turn_completed: true})
                     }
                     else { None }

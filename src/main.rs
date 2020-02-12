@@ -54,16 +54,16 @@ use gameboard::gameboard_drawing::{drawing_constants,highlight_space_for_city_se
 use hardware::HardwareResources;
 use images::SVGImages;
 use std::path::Path;
+use std::collections::HashMap;
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub enum PlayerColor
 {
-    Red,
-    Blue,
-    Green,
-    Yellow
+    Red = 0,
+    Blue = 1,
+    Green = 2,
+    Yellow = 3
 }
-
 
 struct PlayerInventory
 {
@@ -90,7 +90,7 @@ pub struct GameUIData {
     num_players: u8,
     game_board: GameBoard,
     unplaced_board_pieces: std::vec::Vec<BoardPiece>,
-    player_inventory: PlayerInventory,
+    player_inventories: HashMap<PlayerColor, PlayerInventory>,
     player_color: PlayerColor,
     three_pos_under_mouse: Option<(GameBoardSpacePos, GameBoardSpacePos, GameBoardSpacePos)>,
     one_pos_under_mouse: Option<GameBoardSpacePos>,
@@ -98,15 +98,38 @@ pub struct GameUIData {
 
 impl GameUIData {
     fn defaults() -> GameUIData {
+        let num_players = 1;
+        let mut initial_player_inventories = HashMap::new();
+        initial_player_inventories.insert(PlayerColor::Red, PlayerInventory::new());
+
         GameUIData {
-            num_players: 1,
+            num_players: num_players,
             game_board: GameBoard::new(),
             unplaced_board_pieces: game_constants::BOARD_PIECES.to_vec(),
-            player_inventory: PlayerInventory::new(),
+            player_inventories: initial_player_inventories,
             player_color: PlayerColor::Red,
             three_pos_under_mouse: None,
             one_pos_under_mouse: None
         }
+    }
+
+    fn reset(&mut self) {
+        assert!(self.num_players == 2);
+        let mut initial_player_inventories = HashMap::new();
+        initial_player_inventories.insert(PlayerColor::Red, PlayerInventory::new());
+
+        self.game_board = GameBoard::new();
+        self.player_inventories = initial_player_inventories;
+        self.unplaced_board_pieces = game_constants::BOARD_PIECES.to_vec();
+        self.player_color = PlayerColor::Red;
+    }
+
+    fn get_mut_active_player_inventory(&mut self) -> &mut PlayerInventory {
+        self.player_inventories.get_mut(&self.player_color).unwrap()
+    }
+
+    fn get_active_player_inventory(&self) -> &PlayerInventory {
+        self.player_inventories.get(&self.player_color).unwrap()
     }
 
     fn drop_board_piece(&mut self) {
@@ -146,12 +169,17 @@ impl GameUIData {
                     if self.game_board.space_ok_for_city(pos_under_mouse) {
                         self.game_board.add_city(pos_under_mouse, self.player_color);
                         self.game_board.add_knight(pos_under_mouse, self.player_color);
-                        self.player_inventory.num_cities -= 1;
-                        self.player_inventory.num_knights -= 1;
+                        let mut player_inventory = self.get_mut_active_player_inventory();
+                        player_inventory.num_cities -= 1;
+                        player_inventory.num_knights -= 1;
                     }
                 }
             }
         }
+    }
+
+    fn end_turn(&mut self) {
+        // Change color
     }
 }
 
@@ -302,19 +330,12 @@ fn main() {
             match event_feedback.last_key_pressed_scancode.unwrap() {
                 F2 => {
                     // Reset board
-                    game_ui_data.game_board = GameBoard::new();
-                    game_ui_data.player_inventory = PlayerInventory::new();
-                    game_ui_data.unplaced_board_pieces = game_constants::BOARD_PIECES.to_vec();
+                    game_ui_data.reset();
                     active_player_action = Box::new(actions::SetupBoard{});
                 }
                 F3 => {
-                    // Change color
-                    game_ui_data.player_color = match game_ui_data.player_color {
-                        PlayerColor::Red => { PlayerColor::Blue }
-                        PlayerColor::Blue => { PlayerColor::Green }
-                        PlayerColor::Green => { PlayerColor::Yellow }
-                        PlayerColor::Yellow => { PlayerColor::Red }
-                    }
+                    // End turn
+                    game_ui_data.end_turn();
                 }
                 _ => {}
             }
@@ -392,14 +413,17 @@ fn main() {
                     drawing::PositionSpec{ x: -0.92, y: 0.36 },
                     drawing::SizeSpec{ x: x_scale * 0.5, y: y_scale * 0.5});
             }
-            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.60 }, drawing::ObjectOriginLocation::Left, 24, game_ui_data.player_color.color(),
-                game_ui_data.player_inventory.num_cities.to_string());
-            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.52 }, drawing::ObjectOriginLocation::Left, 24, game_ui_data.player_color.color(),
-                game_ui_data.player_inventory.num_strongholds.to_string());
-            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.44 }, drawing::ObjectOriginLocation::Left, 24, game_ui_data.player_color.color(),
-                game_ui_data.player_inventory.num_villages.to_string());
-            drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.36 }, drawing::ObjectOriginLocation::Left, 24, game_ui_data.player_color.color(),
-                game_ui_data.player_inventory.num_knights.to_string());
+            {
+                let player_inventory = game_ui_data.get_active_player_inventory();
+                drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.60 }, drawing::ObjectOriginLocation::Left, 24, game_ui_data.player_color.color(),
+                    player_inventory.num_cities.to_string());
+                drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.52 }, drawing::ObjectOriginLocation::Left, 24, game_ui_data.player_color.color(),
+                    player_inventory.num_strongholds.to_string());
+                drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.44 }, drawing::ObjectOriginLocation::Left, 24, game_ui_data.player_color.color(),
+                    player_inventory.num_villages.to_string());
+                drawing::draw_text(&mut text_drawing_baggage, drawing::PositionSpec{ x: -0.88, y: 0.36 }, drawing::ObjectOriginLocation::Left, 24, game_ui_data.player_color.color(),
+                    player_inventory.num_knights.to_string());
+            }
 
             // Draw player items
             game_ui_data.game_board.draw_cities(&hw.gl, &image_program, (window_width, window_height), svg_images.get_city_image(&game_ui_data.player_color));
