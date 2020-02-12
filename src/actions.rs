@@ -62,12 +62,16 @@ impl PlayerActionControl for SetupBoard {
     }
 
     fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<StateTransition> {
-        game_ui_data.drop_board_piece();
+        let board_piece_dropped = game_ui_data.drop_board_piece();
 
         const PIECES_PER_PLAYER: usize = 9;
 
-        if game_ui_data.unplaced_board_pieces.len() <= gameboard::gameboard::game_constants::BOARD_PIECES.len() - PIECES_PER_PLAYER * game_ui_data.num_players as usize {
-            Some(StateTransition{next_action: Box::new(SetupCities{}), turn_completed: true})
+        if board_piece_dropped {
+            if game_ui_data.unplaced_board_pieces.len() <= gameboard::gameboard::game_constants::BOARD_PIECES.len() - PIECES_PER_PLAYER * game_ui_data.num_players as usize {
+                Some(StateTransition{next_action: Box::new(SetupCities{}), turn_completed: true})
+            } else {
+                Some(StateTransition{next_action: Box::new(SetupBoard{}), turn_completed: true})
+            }
         } else {
             None
         }
@@ -114,10 +118,14 @@ impl PlayerActionControl for SetupCities {
     }
 
     fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<StateTransition> {
-        game_ui_data.drop_city();
+        let city_dropped = game_ui_data.drop_city();
 
-        if game_ui_data.game_board.num_cities() >= 3 {
-            Some(StateTransition{next_action: Box::new(ChooseAction{}), turn_completed: true})
+        if city_dropped {
+            if game_ui_data.game_board.num_cities() >= 3 * game_ui_data.num_players as usize {
+                Some(StateTransition{next_action: Box::new(ChooseAction{}), turn_completed: true})
+            } else {
+                Some(StateTransition{next_action: Box::new(SetupCities{}), turn_completed: true})
+            }
         } else {
             None
         }

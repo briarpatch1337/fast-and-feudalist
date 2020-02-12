@@ -98,9 +98,10 @@ pub struct GameUIData {
 
 impl GameUIData {
     fn defaults() -> GameUIData {
-        let num_players = 1;
+        let num_players = 2;
         let mut initial_player_inventories = HashMap::new();
         initial_player_inventories.insert(PlayerColor::Red, PlayerInventory::new());
+        initial_player_inventories.insert(PlayerColor::Blue, PlayerInventory::new());
 
         GameUIData {
             num_players: num_players,
@@ -117,6 +118,7 @@ impl GameUIData {
         assert!(self.num_players == 2);
         let mut initial_player_inventories = HashMap::new();
         initial_player_inventories.insert(PlayerColor::Red, PlayerInventory::new());
+        initial_player_inventories.insert(PlayerColor::Blue, PlayerInventory::new());
 
         self.game_board = GameBoard::new();
         self.player_inventories = initial_player_inventories;
@@ -190,6 +192,32 @@ impl GameUIData {
 
     fn end_turn(&mut self) {
         // Change color
+        self.player_color = match self.num_players {
+            2 => {
+                match self.player_color {
+                    PlayerColor::Red => { PlayerColor::Blue }
+                    PlayerColor::Blue => { PlayerColor::Red }
+                    _ => {self.player_color}
+                }
+            }
+            3 => {
+                match self.player_color {
+                    PlayerColor::Red => { PlayerColor::Blue }
+                    PlayerColor::Blue => { PlayerColor::Green }
+                    PlayerColor::Green => { PlayerColor::Red }
+                    _ => {self.player_color}
+                }
+            }
+            4 => {
+                match self.player_color {
+                    PlayerColor::Red => { PlayerColor::Blue }
+                    PlayerColor::Blue => { PlayerColor::Green }
+                    PlayerColor::Green => { PlayerColor::Yellow }
+                    PlayerColor::Yellow => { PlayerColor::Red }
+                }
+            }
+            _ => {self.player_color}
+        }
     }
 }
 
@@ -329,12 +357,18 @@ fn main() {
         if event_feedback.mouse_clicked {
             if let Some(state_transition) = active_player_action.mouse_clicked(&mut game_ui_data) {
                 active_player_action = state_transition.next_action;
+                if state_transition.turn_completed {
+                    game_ui_data.end_turn();
+                }
             }
         }
 
         if event_feedback.key_pressed {
             if let Some(state_transition) = active_player_action.key_pressed(&mut game_ui_data, &event_feedback.last_key_pressed_scancode.unwrap()) {
                 active_player_action = state_transition.next_action;
+                if state_transition.turn_completed {
+                    game_ui_data.end_turn();
+                }
             }
             use sdl2::keyboard::Scancode::*;
             match event_feedback.last_key_pressed_scancode.unwrap() {

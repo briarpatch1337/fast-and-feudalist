@@ -162,45 +162,84 @@ impl Draw for GameBoard {
         for knight in self.knights() {
             *positions.entry(knight.position).or_insert(HashMap::new()).entry(knight.owner).or_insert(0) += 1
         }
+
+        let (x_scale, y_scale) = scaling_for_board(drawable_size);
+
         for (position, counts) in positions {
-            let (x_scale, y_scale) = scaling_for_board(drawable_size);
             let drawing_pos = game_board_pos_to_drawing_pos(position);
             assert!(!counts.is_empty());
-            let owner = counts.keys().next().unwrap();
-            let count = *counts.get(owner).unwrap();
-            let player_color = owner.color();
+            match counts.len() {
+                1 => {
+                    let owner = counts.keys().next().unwrap();
+                    let count = *counts.get(owner).unwrap();
+                    let player_color = owner.color();
+                    {
+                        let x_margin = 3.0 / 8.0;
+                        let y_margin = 3.0 / 8.0;
+                        let x_offset = -0.2;
+                        let y_offset = -0.2;
+                        Self::draw_knight(&gl, &shader_program, &images, &owner, &drawing_pos, (x_scale, y_scale), (x_margin, y_margin, x_offset, y_offset));
+                    }
+                    if count == 2
+                    {
+                        let x_margin = 3.0 / 8.0;
+                        let y_margin = 3.0 / 8.0;
+                        let x_offset = 0.2;
+                        let y_offset = -0.2;
+                        Self::draw_knight(&gl, &shader_program, &images, &owner, &drawing_pos, (x_scale, y_scale), (x_margin, y_margin, x_offset, y_offset));
+                    }
+                    if count >= 3
+                    {
+                        let x_margin = 3.0 / 8.0;
+                        let y_margin = 3.0 / 8.0;
+                        let x_offset = 0.2;
+                        let y_offset = -0.2;
 
-            {
-                let x_margin = 3.0 / 8.0;
-                let y_margin = 3.0 / 8.0;
-                let x_offset = -0.2;
-                let y_offset = -0.2;
-                Self::draw_knight(&gl, &shader_program, &images, &owner, &drawing_pos, (x_scale, y_scale), (x_margin, y_margin, x_offset, y_offset));
-            }
-            if count == 2
-            {
-                let x_margin = 3.0 / 8.0;
-                let y_margin = 3.0 / 8.0;
-                let x_offset = 0.2;
-                let y_offset = -0.2;
-                Self::draw_knight(&gl, &shader_program, &images, &owner, &drawing_pos, (x_scale, y_scale), (x_margin, y_margin, x_offset, y_offset));
-            }
-            if count >= 3
-            {
-                let x_margin = 3.0 / 8.0;
-                let y_margin = 3.0 / 8.0;
-                let x_offset = 0.2;
-                let y_offset = -0.2;
-
-                drawing::draw_text(
-                    baggage,
-                    drawing::PositionSpec{
-                        x: drawing_pos.x * x_scale - 0.5 * drawing_constants::HEXAGON_WIDTH * x_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (x_margin + x_offset),
-                        y: drawing_pos.y * y_scale - 0.5 * drawing_constants::HEXAGON_HEIGHT * y_scale + drawing_constants::HEXAGON_WIDTH * y_scale * (y_margin + y_offset)},
-                    drawing::ObjectOriginLocation::Center,
-                    24,
-                    player_color,
-                    format!("x{}", count));
+                        drawing::draw_text(
+                            baggage,
+                            drawing::PositionSpec{
+                                x: drawing_pos.x * x_scale - 0.5 * drawing_constants::HEXAGON_WIDTH * x_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (x_margin + x_offset),
+                                y: drawing_pos.y * y_scale - 0.5 * drawing_constants::HEXAGON_HEIGHT * y_scale + drawing_constants::HEXAGON_WIDTH * y_scale * (y_margin + y_offset)},
+                            drawing::ObjectOriginLocation::Center,
+                            24,
+                            player_color,
+                            format!("x{}", count));
+                    }
+                }
+                2 => {
+                    let mut owners: Vec<PlayerColor> = counts.keys().map(|x| x.clone()).collect();
+                    owners.sort_by(|a, b| (*a as u8).cmp(&(*b as u8)));
+                    {
+                        let owner = owners[0];
+                        let x_margin = 3.0 / 8.0;
+                        let y_margin = 3.0 / 8.0;
+                        let x_offset = -0.2;
+                        let y_offset = -0.2;
+                        Self::draw_knight(&gl, &shader_program, &images, &owner, &drawing_pos, (x_scale, y_scale), (x_margin, y_margin, x_offset, y_offset));
+                    }
+                    {
+                        let owner = owners[1];
+                        let x_margin = 3.0 / 8.0;
+                        let y_margin = 3.0 / 8.0;
+                        let x_offset = 0.2;
+                        let y_offset = -0.2;
+                        Self::draw_knight(&gl, &shader_program, &images, &owner, &drawing_pos, (x_scale, y_scale), (x_margin, y_margin, x_offset, y_offset));
+                    }
+                }
+                // Need more logic here for 3-4 player game.
+                _ => {
+                    {
+                        drawing::draw_text(
+                            baggage,
+                            drawing::PositionSpec{
+                                x: drawing_pos.x * x_scale,
+                                y: drawing_pos.y * y_scale - 0.25 * drawing_constants::HEXAGON_HEIGHT * y_scale},
+                            drawing::ObjectOriginLocation::Center,
+                            18,
+                            PlayerColor::Blue.color(),
+                            format!("TODO"));
+                    }
+                }
             }
         }
     }
