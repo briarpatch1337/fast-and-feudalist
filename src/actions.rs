@@ -438,10 +438,6 @@ impl PlayerActionControl for Movement {
 
             Backspace => {
                 if self.first_move.is_some() && self.selected_knight.is_none() {
-                    // Undo first move
-                    let (prev_from_pos, prev_to_pos) = self.first_move.unwrap();
-                    game_ui_data.game_board.move_knight(prev_to_pos, prev_from_pos, game_ui_data.player_color).unwrap();
-                    self.first_move = None;
                     None
                 }
                 else if self.selected_knight.is_some() {
@@ -540,7 +536,7 @@ impl PlayerActionControl for Movement {
                 drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.82 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
                     "Select a second knight to move.".to_string());
                 drawing::draw_text(baggage, drawing::PositionSpec{ x: 0.0, y: 0.74 }, drawing::ObjectOriginLocation::Center, 18, drawing::ColorSpec { r: 0xEE, g: 0xE8, b: 0xAA },
-                    "Press Backspace to cancel, press Y to finish your turn.".to_string());
+                    "Press Y to finish your turn.".to_string());
             }
         }
     }
