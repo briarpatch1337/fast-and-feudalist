@@ -307,6 +307,10 @@ impl GameBoard {
     }
 
     pub fn space_ok_for_knight(&self, position: GameBoardSpacePos, owner: PlayerColor) -> bool {
+        if self.cities.iter().any(|ref city| city.position == position && city.owner != owner) {
+            return false;
+        }
+
         let opposing_unit_count = self.opposing_unit_count_at_pos(position, owner);
         let space_type = self.get_board_space_type(position);
 
