@@ -1,6 +1,7 @@
 
 use drawing;
 use drawing_constants;
+use std::collections::HashMap;
 use std::error;
 use std::fmt;
 use PlayerColor;
@@ -199,6 +200,7 @@ pub mod game_constants {
 }
 
 
+#[derive(Clone)]
 pub struct UnitInfo {
     pub position: GameBoardSpacePos,
     pub owner: PlayerColor
@@ -288,14 +290,15 @@ impl GameBoard {
         self.knights.push(UnitInfo{ position: position, owner: owner });
     }
 
-    pub fn move_knight(&mut self, from_pos: GameBoardSpacePos, to_pos: GameBoardSpacePos, owner: PlayerColor) -> Result<(), KnightMoveError> {
+    // Returns any knights that were "killed" as part of the move (should be returned to player's inventory).
+    pub fn move_knight(&mut self, from_pos: GameBoardSpacePos, to_pos: GameBoardSpacePos, owner: PlayerColor) -> Result<std::vec::Vec<UnitInfo>, KnightMoveError> {
         // Return KnightMoveError if there isn't a knight at from_pos, or if the to_pos is not ok to move a knight into.
         // simply iterating over the vector knights... Think about tracking the knights at each position a different way.
         if let Some(knight_index) = self.knights.iter().position(|ref knight| knight.position == from_pos && knight.owner == owner) {
             if self.space_ok_for_knight(to_pos, owner) {
                 // reassign position
                 self.knights[knight_index].position = to_pos;
-                Ok(())
+                Ok(self.resolve_coexistence(to_pos))
             }
             else {
                 Err(KnightMoveError{})
@@ -319,6 +322,37 @@ impl GameBoard {
             Void | Water => {false}
             Mountain => { opposing_unit_count == 0 }
             Forest | Plains | Field => { opposing_unit_count < 2 }
+        }
+    }
+
+    // Returns any knights that were "killed" as part of the move (should be returned to player's inventory).
+    pub fn resolve_coexistence(&mut self, position: GameBoardSpacePos) -> std::vec::Vec<UnitInfo> {
+        let units_at_pos: std::vec::Vec<UnitInfo> = self.knights.iter().filter(|ref knight| knight.position == position).map(|x| x.clone()).collect();
+
+        // never any units killed if there are 0, 1, or 2 total units in the space.
+        if units_at_pos.iter().count() < 3 { return Vec::new(); }
+
+        let mut player_unit_count = HashMap::new();
+        for unit in units_at_pos.iter() {
+            *player_unit_count.entry(unit.owner).or_insert(0) += 1
+        }
+
+        // Assumption here is that there can only ever be one player with multiple units on the same space,
+        // because the function space_ok_for_knight() enforces that.
+        assert!(player_unit_count.keys().filter(|x| *player_unit_count.get(x).unwrap() > 1).count() <= 1);
+
+        let winning_owner = player_unit_count.keys().find(|x| *player_unit_count.get(x).unwrap() > 1);
+        match winning_owner {
+            Some(winning_owner) => {
+                let dead_units: std::vec::Vec<UnitInfo> = units_at_pos.iter().filter(|ref knight| knight.owner != *winning_owner).map(|x| x.clone()).collect();
+                self.knights.retain(|ref knight| knight.position != position || knight.owner == *winning_owner);
+                dead_units
+            }
+            None => {
+                // Nobody has more than 1 unit at this space.
+                // Should only hit this case if there are 3 or 4 players all occupying the same space, each with one unit.
+                Vec::new()
+            }
         }
     }
 

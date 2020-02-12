@@ -408,7 +408,10 @@ impl PlayerActionControl for Movement {
                 // Move the knight to the space under the cursor if it is a viable to space.
                 let to_pos = pos_under_mouse;
                 if Movement::is_to_space_viable(from_pos, to_pos, game_ui_data) && to_pos.is_neighbor(from_pos) {
-                    game_ui_data.game_board.move_knight(from_pos, to_pos, game_ui_data.player_color).unwrap();
+                    let killed_knights = game_ui_data.game_board.move_knight(from_pos, to_pos, game_ui_data.player_color).unwrap();
+                    for knight in killed_knights {
+                        game_ui_data.player_inventories.get_mut(&knight.owner).unwrap().num_knights += 1;
+                    }
                     if self.first_move.is_some() {
                         // Already moved once, so turn is over.
                         return Some(StateTransition{next_action: Box::new(ChooseAction{}), turn_completed: true})
