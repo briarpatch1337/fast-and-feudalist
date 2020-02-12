@@ -132,7 +132,7 @@ impl GameUIData {
         self.player_inventories.get(&self.player_color).unwrap()
     }
 
-    fn drop_board_piece(&mut self) {
+    fn drop_board_piece(&mut self) -> bool {
         if self.three_pos_under_mouse.is_some() {
             let (pos_under_mouse_a, pos_under_mouse_b, pos_under_mouse_c) = self.three_pos_under_mouse.unwrap();
             let game_board = &mut self.game_board;
@@ -156,15 +156,20 @@ impl GameUIData {
                 game_board.set_board_space_type(pos_under_mouse_a, new_a);
                 game_board.set_board_space_type(pos_under_mouse_b, new_b);
                 game_board.set_board_space_type(pos_under_mouse_c, new_c);
+                true
+            } else {
+                false
             }
+        } else {
+            false
         }
     }
 
-    fn drop_city(&mut self) {
+    fn drop_city(&mut self) -> bool {
         if self.one_pos_under_mouse.is_some() {
             let pos_under_mouse = self.one_pos_under_mouse.unwrap();
             match self.game_board.get_board_space_type(pos_under_mouse) {
-                GameBoardSpaceType::Void => {}
+                GameBoardSpaceType::Void => {false}
                 _ => {
                     if self.game_board.space_ok_for_city(pos_under_mouse) {
                         self.game_board.add_city(pos_under_mouse, self.player_color);
@@ -172,9 +177,14 @@ impl GameUIData {
                         let mut player_inventory = self.get_mut_active_player_inventory();
                         player_inventory.num_cities -= 1;
                         player_inventory.num_knights -= 1;
+                        true
+                    } else {
+                        false
                     }
                 }
             }
+        } else {
+            false
         }
     }
 
