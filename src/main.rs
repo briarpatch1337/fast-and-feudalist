@@ -289,14 +289,14 @@ fn main() {
         }
 
         if event_feedback.mouse_clicked {
-            if let Some(new_action) = active_player_action.mouse_clicked(&mut game_ui_data) {
-                active_player_action = new_action;
+            if let Some(state_transition) = active_player_action.mouse_clicked(&mut game_ui_data) {
+                active_player_action = state_transition.next_action;
             }
         }
 
         if event_feedback.key_pressed {
-            if let Some(new_action) = active_player_action.key_pressed(&mut game_ui_data, &event_feedback.last_key_pressed_scancode.unwrap()) {
-                active_player_action = new_action;
+            if let Some(state_transition) = active_player_action.key_pressed(&mut game_ui_data, &event_feedback.last_key_pressed_scancode.unwrap()) {
+                active_player_action = state_transition.next_action;
             }
             use sdl2::keyboard::Scancode::*;
             match event_feedback.last_key_pressed_scancode.unwrap() {

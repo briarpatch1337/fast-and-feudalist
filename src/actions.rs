@@ -33,9 +33,9 @@ pub trait PlayerActionControl {
 
     fn get_action_type(&self) -> PlayerActionType;
 
-    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<Box<PlayerActionControl>>; // returns the next state, or None if the state hasn't changed
+    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<StateTransition>; // returns the next state, or None if the state hasn't changed
 
-    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<Box<PlayerActionControl>>; // returns the next state, or None if the state hasn't changed
+    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<StateTransition>; // returns the next state, or None if the state hasn't changed
 
     fn draw_highlight(
         &self,
@@ -49,6 +49,11 @@ pub trait PlayerActionControl {
     fn draw_text(&self, baggage: &mut drawing::TextDrawingBaggage, game_ui_data: &mut GameUIData);
 }
 
+pub struct StateTransition {
+    pub next_action: Box<PlayerActionControl>,
+    pub turn_completed: bool
+}
+
 #[derive(Clone)]
 pub struct SetupBoard {}
 impl PlayerActionControl for SetupBoard {
@@ -56,19 +61,19 @@ impl PlayerActionControl for SetupBoard {
         PlayerActionType::SetupBoard
     }
 
-    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<Box<PlayerActionControl>> {
+    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<StateTransition> {
         game_ui_data.drop_board_piece();
 
         const PIECES_PER_PLAYER: usize = 9;
 
         if game_ui_data.unplaced_board_pieces.len() <= gameboard::gameboard::game_constants::BOARD_PIECES.len() - PIECES_PER_PLAYER * game_ui_data.num_players as usize {
-            Some(Box::new(SetupCities{}))
+            Some(StateTransition{next_action: Box::new(SetupCities{}), turn_completed: true})
         } else {
             None
         }
     }
 
-    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<Box<PlayerActionControl>> {
+    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<StateTransition> {
         None
     }
 
@@ -108,17 +113,17 @@ impl PlayerActionControl for SetupCities {
         PlayerActionType::SetupCities
     }
 
-    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<Box<PlayerActionControl>> {
+    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<StateTransition> {
         game_ui_data.drop_city();
 
         if game_ui_data.game_board.num_cities() >= 3 {
-            Some(Box::new(ChooseAction{}))
+            Some(StateTransition{next_action: Box::new(ChooseAction{}), turn_completed: true})
         } else {
             None
         }
     }
 
-    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<Box<PlayerActionControl>> {
+    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<StateTransition> {
         None
     }
 
@@ -161,25 +166,25 @@ impl PlayerActionControl for ChooseAction {
         PlayerActionType::ChooseAction
     }
 
-    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<Box<PlayerActionControl>> {
+    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<StateTransition> {
         None
     }
 
-    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<Box<PlayerActionControl>> {
+    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<StateTransition> {
         use sdl2::keyboard::Scancode::*;
         match scancode {
             Num1 | Kp1 => {
-                if Recruitment::is_action_viable(game_ui_data) { Some(Box::new(Recruitment{ selected_city: None })) }
+                if Recruitment::is_action_viable(game_ui_data) { Some(StateTransition{next_action: Box::new(Recruitment{ selected_city: None }), turn_completed: false}) }
                 else { None }
             }
             Num2 | Kp2 => {
-                if Movement::is_action_viable(game_ui_data) { Some(Box::new(Movement{ selected_knight: None, first_move: None })) }
+                if Movement::is_action_viable(game_ui_data) { Some(StateTransition{next_action: Box::new(Movement{ selected_knight: None, first_move: None }), turn_completed: false}) }
                 else { None }
             }
-            Num3 | Kp3 => { Some(Box::new(Construction{})) }
-            Num4 | Kp4 => { Some(Box::new(NewCity{})) }
-            Num5 | Kp5 => { Some(Box::new(Expedition{})) }
-            Num6 | Kp6 => { Some(Box::new(NobleTitle{})) }
+            Num3 | Kp3 => { Some(StateTransition{next_action: Box::new(Construction{}), turn_completed: false}) }
+            Num4 | Kp4 => { Some(StateTransition{next_action: Box::new(NewCity{}), turn_completed: false}) }
+            Num5 | Kp5 => { Some(StateTransition{next_action: Box::new(Expedition{}), turn_completed: false}) }
+            Num6 | Kp6 => { Some(StateTransition{next_action: Box::new(NobleTitle{}), turn_completed: false}) }
             _ => { None }
         }
     }
@@ -234,7 +239,7 @@ impl PlayerActionControl for Recruitment {
         PlayerActionType::Recruitment
     }
 
-    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<Box<PlayerActionControl>> {
+    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<StateTransition> {
         if let Some(pos_under_mouse) = game_ui_data.one_pos_under_mouse {
             match game_ui_data.game_board.get_board_space_type(pos_under_mouse) {
                 gameboard::gameboard::GameBoardSpaceType::Void => {}
@@ -250,7 +255,7 @@ impl PlayerActionControl for Recruitment {
         None
     }
 
-    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<Box<PlayerActionControl>> {
+    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<StateTransition> {
         use sdl2::keyboard::Scancode::*;
         match scancode {
             Num1 | Kp1 => {
@@ -258,7 +263,7 @@ impl PlayerActionControl for Recruitment {
                     assert!(Recruitment::max_number_of_knights_to_add(game_board_pos, game_ui_data) >= 1);
                     self.add_knights(game_ui_data, 1);
                     game_ui_data.player_inventory.num_knights -= 1;
-                    Some(Box::new(ChooseAction{}))
+                    Some(StateTransition{next_action: Box::new(ChooseAction{}), turn_completed: true})
                 }
                 else { None }
             }
@@ -267,7 +272,7 @@ impl PlayerActionControl for Recruitment {
                     if Recruitment::max_number_of_knights_to_add(game_board_pos, game_ui_data) >= 2 {
                         self.add_knights(game_ui_data, 2);
                         game_ui_data.player_inventory.num_knights -= 2;
-                        Some(Box::new(ChooseAction{}))
+                        Some(StateTransition{next_action: Box::new(ChooseAction{}), turn_completed: true})
                     }
                     else { None }
                 }
@@ -278,7 +283,7 @@ impl PlayerActionControl for Recruitment {
                     if Recruitment::max_number_of_knights_to_add(game_board_pos, game_ui_data) >= 3 {
                         self.add_knights(game_ui_data, 3);
                         game_ui_data.player_inventory.num_knights -= 3;
-                        Some(Box::new(ChooseAction{}))
+                        Some(StateTransition{next_action: Box::new(ChooseAction{}), turn_completed: true})
                     }
                     else { None }
                 }
@@ -293,7 +298,7 @@ impl PlayerActionControl for Recruitment {
                 }
                 else {
                     // Undo action selection
-                    Some(Box::new(ChooseAction{}))
+                    Some(StateTransition{next_action: Box::new(ChooseAction{}), turn_completed: false})
                 }
             }
             _ => { None }
@@ -394,7 +399,7 @@ impl PlayerActionControl for Movement {
         PlayerActionType::Movement
     }
 
-    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<Box<PlayerActionControl>> {
+    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<StateTransition> {
         if let Some(pos_under_mouse) = game_ui_data.one_pos_under_mouse {
             if let Some(from_pos) = self.selected_knight {
                 // Knight has been selected.
@@ -404,7 +409,7 @@ impl PlayerActionControl for Movement {
                     game_ui_data.game_board.move_knight(from_pos, to_pos, game_ui_data.player_color).unwrap();
                     if self.first_move.is_some() {
                         // Already moved once, so turn is over.
-                        return Some(Box::new(ChooseAction{}))
+                        return Some(StateTransition{next_action: Box::new(ChooseAction{}), turn_completed: true})
                     }
                     else {
                         // Moved first knight.
@@ -427,7 +432,7 @@ impl PlayerActionControl for Movement {
         None
     }
 
-    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<Box<PlayerActionControl>> {
+    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<StateTransition> {
         use sdl2::keyboard::Scancode::*;
         match scancode {
 
@@ -446,13 +451,13 @@ impl PlayerActionControl for Movement {
                 }
                 else {
                     // Undo action selection
-                    Some(Box::new(ChooseAction{}))
+                    Some(StateTransition{next_action: Box::new(ChooseAction{}), turn_completed: false})
                 }
             }
             Y => {
                 if self.first_move.is_some() {
                     // Finish turn
-                    Some(Box::new(ChooseAction{}))
+                    Some(StateTransition{next_action: Box::new(ChooseAction{}), turn_completed: true})
                 }
                 else {
                     None
@@ -548,15 +553,15 @@ impl PlayerActionControl for Construction {
         PlayerActionType::Construction
     }
 
-    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<Box<PlayerActionControl>> {
+    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<StateTransition> {
         None
     }
 
-    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<Box<PlayerActionControl>> {
+    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<StateTransition> {
         use sdl2::keyboard::Scancode::*;
         match scancode {
             // Undo action selection
-            Backspace => { Some(Box::new(ChooseAction{})) }
+            Backspace => { Some(StateTransition{next_action: Box::new(ChooseAction{}), turn_completed: false}) }
             _ => { None }
         }
     }
@@ -589,15 +594,15 @@ impl PlayerActionControl for NewCity {
         PlayerActionType::NewCity
     }
 
-    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<Box<PlayerActionControl>> {
+    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<StateTransition> {
         None
     }
 
-    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<Box<PlayerActionControl>> {
+    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<StateTransition> {
         use sdl2::keyboard::Scancode::*;
         match scancode {
             // Undo action selection
-            Backspace => { Some(Box::new(ChooseAction{})) }
+            Backspace => { Some(StateTransition{next_action: Box::new(ChooseAction{}), turn_completed: false}) }
             _ => { None }
         }
     }
@@ -630,15 +635,15 @@ impl PlayerActionControl for Expedition {
         PlayerActionType::Expedition
     }
 
-    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<Box<PlayerActionControl>> {
+    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<StateTransition> {
         None
     }
 
-    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<Box<PlayerActionControl>> {
+    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<StateTransition> {
         use sdl2::keyboard::Scancode::*;
         match scancode {
             // Undo action selection
-            Backspace => { Some(Box::new(ChooseAction{})) }
+            Backspace => { Some(StateTransition{next_action: Box::new(ChooseAction{}), turn_completed: false}) }
             _ => { None }
         }
     }
@@ -671,15 +676,15 @@ impl PlayerActionControl for NobleTitle {
         PlayerActionType::NobleTitle
     }
 
-    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<Box<PlayerActionControl>> {
+    fn mouse_clicked(&mut self, game_ui_data: &mut GameUIData) -> Option<StateTransition> {
         None
     }
 
-    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<Box<PlayerActionControl>> {
+    fn key_pressed(&mut self, game_ui_data: &mut GameUIData, scancode: &sdl2::keyboard::Scancode) -> Option<StateTransition> {
         use sdl2::keyboard::Scancode::*;
         match scancode {
             // Undo action selection
-            Backspace => { Some(Box::new(ChooseAction{})) }
+            Backspace => { Some(StateTransition{next_action: Box::new(ChooseAction{}), turn_completed: false}) }
             _ => { None }
         }
     }
