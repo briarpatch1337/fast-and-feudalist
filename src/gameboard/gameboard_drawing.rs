@@ -5,6 +5,7 @@ use gl;
 use images::SVGImages;
 use render_gl;
 use std::collections::HashMap;
+use PlayerColor;
 
 pub mod drawing_constants {
     use game_constants;
@@ -83,6 +84,7 @@ pub trait Draw {
     fn draw_board(&self, gl: &gl::Gl, shader_program: &render_gl::Program);
     fn draw_border(gl: &gl::Gl, shader_program: &render_gl::Program);
     fn draw_cities(&self, gl: &gl::Gl, shader_program: &render_gl::Program, drawable_size: (u32, u32), images: &SVGImages);
+    fn draw_knight(gl: &gl::Gl, shader_program: &render_gl::Program, images: &SVGImages, owner: &PlayerColor, drawing_pos: &drawing::PositionSpec, scaling_for_board: (f32, f32), margin_and_offset: (f32, f32, f32, f32));
     fn draw_knights(&self, gl: &gl::Gl, shader_program: &render_gl::Program, drawable_size: (u32, u32), images: &SVGImages, baggage: &mut drawing::TextDrawingBaggage);
 }
 
@@ -136,6 +138,21 @@ impl Draw for GameBoard {
         }
     }
 
+    fn draw_knight(gl: &gl::Gl, shader_program: &render_gl::Program, images: &SVGImages, owner: &PlayerColor, drawing_pos: &drawing::PositionSpec, scaling_for_board: (f32, f32), margin_and_offset: (f32, f32, f32, f32)) {
+        let (x_scale, y_scale) = scaling_for_board;
+        let (x_margin, y_margin, x_offset, y_offset) = margin_and_offset;
+        drawing::draw_image(
+            &gl,
+            &shader_program,
+            images.get_knight_image(&owner),
+            drawing::PositionSpec{
+                x: drawing_pos.x * x_scale - 0.5 * drawing_constants::HEXAGON_WIDTH * x_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (x_margin + x_offset),
+                y: drawing_pos.y * y_scale - 0.5 * drawing_constants::HEXAGON_HEIGHT * y_scale + drawing_constants::HEXAGON_WIDTH * y_scale * (y_margin + y_offset)},
+            drawing::SizeSpec{
+                x: drawing_constants::HEXAGON_WIDTH * x_scale * (1.0 - x_margin * 2.0),
+                y: drawing_constants::HEXAGON_HEIGHT * y_scale * (1.0 - y_margin * 2.0)});
+    }
+
     fn draw_knights(&self, gl: &gl::Gl, shader_program: &render_gl::Program, drawable_size: (u32, u32), images: &SVGImages, baggage: &mut drawing::TextDrawingBaggage) {
         if self.knights().len() == 0 { return; }
 
@@ -158,17 +175,7 @@ impl Draw for GameBoard {
                 let y_margin = 3.0 / 8.0;
                 let x_offset = -0.2;
                 let y_offset = -0.2;
-
-                drawing::draw_image(
-                    &gl,
-                    &shader_program,
-                    images.get_knight_image(&owner),
-                    drawing::PositionSpec{
-                        x: drawing_pos.x * x_scale - 0.5 * drawing_constants::HEXAGON_WIDTH * x_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (x_margin + x_offset),
-                        y: drawing_pos.y * y_scale - 0.5 * drawing_constants::HEXAGON_HEIGHT * y_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (y_margin + y_offset)},
-                    drawing::SizeSpec{
-                        x: drawing_constants::HEXAGON_WIDTH * x_scale * (1.0 - x_margin * 2.0),
-                        y: drawing_constants::HEXAGON_HEIGHT * y_scale * (1.0 - y_margin * 2.0)});
+                Self::draw_knight(&gl, &shader_program, &images, &owner, &drawing_pos, (x_scale, y_scale), (x_margin, y_margin, x_offset, y_offset));
             }
             if count == 2
             {
@@ -176,17 +183,7 @@ impl Draw for GameBoard {
                 let y_margin = 3.0 / 8.0;
                 let x_offset = 0.2;
                 let y_offset = -0.2;
-
-                drawing::draw_image(
-                    &gl,
-                    &shader_program,
-                    images.get_knight_image(&owner),
-                    drawing::PositionSpec{
-                        x: drawing_pos.x * x_scale - 0.5 * drawing_constants::HEXAGON_WIDTH * x_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (x_margin + x_offset),
-                        y: drawing_pos.y * y_scale - 0.5 * drawing_constants::HEXAGON_HEIGHT * y_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (y_margin + y_offset)},
-                    drawing::SizeSpec{
-                        x: drawing_constants::HEXAGON_WIDTH * x_scale * (1.0 - x_margin * 2.0),
-                        y: drawing_constants::HEXAGON_HEIGHT * y_scale * (1.0 - y_margin * 2.0)});
+                Self::draw_knight(&gl, &shader_program, &images, &owner, &drawing_pos, (x_scale, y_scale), (x_margin, y_margin, x_offset, y_offset));
             }
             if count >= 3
             {
@@ -199,7 +196,7 @@ impl Draw for GameBoard {
                     baggage,
                     drawing::PositionSpec{
                         x: drawing_pos.x * x_scale - 0.5 * drawing_constants::HEXAGON_WIDTH * x_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (x_margin + x_offset),
-                        y: drawing_pos.y * y_scale - 0.5 * drawing_constants::HEXAGON_HEIGHT * y_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (y_margin + y_offset)},
+                        y: drawing_pos.y * y_scale - 0.5 * drawing_constants::HEXAGON_HEIGHT * y_scale + drawing_constants::HEXAGON_WIDTH * y_scale * (y_margin + y_offset)},
                     drawing::ObjectOriginLocation::Center,
                     24,
                     player_color,
