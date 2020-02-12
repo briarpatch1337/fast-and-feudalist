@@ -2,6 +2,7 @@ use colors::Color;
 use drawing;
 use gameboard::gameboard::{GameBoard,GameBoardSpaceType,GameBoardSpacePos,game_board_pos_to_drawing_pos,game_constants};
 use gl;
+use images::SVGImages;
 use render_gl;
 use std::collections::HashMap;
 
@@ -81,8 +82,8 @@ pub fn highlight_space_for_board_setup(gl: &gl::Gl, shader_program: &render_gl::
 pub trait Draw {
     fn draw_board(&self, gl: &gl::Gl, shader_program: &render_gl::Program);
     fn draw_border(gl: &gl::Gl, shader_program: &render_gl::Program);
-    fn draw_cities(&self, gl: &gl::Gl, shader_program: &render_gl::Program, drawable_size: (u32, u32), city_image: &nsvg::image::RgbaImage);
-    fn draw_knights(&self, gl: &gl::Gl, shader_program: &render_gl::Program, drawable_size: (u32, u32), knight_image: &nsvg::image::RgbaImage, baggage: &mut drawing::TextDrawingBaggage, text_color: drawing::ColorSpec);
+    fn draw_cities(&self, gl: &gl::Gl, shader_program: &render_gl::Program, drawable_size: (u32, u32), images: &SVGImages);
+    fn draw_knights(&self, gl: &gl::Gl, shader_program: &render_gl::Program, drawable_size: (u32, u32), images: &SVGImages, baggage: &mut drawing::TextDrawingBaggage);
 }
 
 impl Draw for GameBoard {
@@ -111,7 +112,7 @@ impl Draw for GameBoard {
             3.0);
     }
 
-    fn draw_cities(&self, gl: &gl::Gl, shader_program: &render_gl::Program, drawable_size: (u32, u32), city_image: &nsvg::image::RgbaImage) {
+    fn draw_cities(&self, gl: &gl::Gl, shader_program: &render_gl::Program, drawable_size: (u32, u32), images: &SVGImages) {
         for city in self.cities() {
             let (x_scale, y_scale) = scaling_for_board(drawable_size);
             let drawing_pos = game_board_pos_to_drawing_pos(city.position);
@@ -124,7 +125,7 @@ impl Draw for GameBoard {
                 drawing::draw_image(
                     &gl,
                     &shader_program,
-                    &city_image,
+                    images.get_city_image(&city.owner),
                     drawing::PositionSpec{
                         x: drawing_pos.x * x_scale - 0.5 * drawing_constants::HEXAGON_WIDTH * x_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (x_margin + x_offset),
                         y: drawing_pos.y * y_scale - 0.5 * drawing_constants::HEXAGON_HEIGHT * y_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (y_margin + y_offset)},
@@ -135,14 +136,22 @@ impl Draw for GameBoard {
         }
     }
 
-    fn draw_knights(&self, gl: &gl::Gl, shader_program: &render_gl::Program, drawable_size: (u32, u32), knight_image: &nsvg::image::RgbaImage, baggage: &mut drawing::TextDrawingBaggage, text_color: drawing::ColorSpec) {
+    fn draw_knights(&self, gl: &gl::Gl, shader_program: &render_gl::Program, drawable_size: (u32, u32), images: &SVGImages, baggage: &mut drawing::TextDrawingBaggage) {
+        if self.knights().len() == 0 { return; }
+
+        // TODO Don't calculate this on the fly each time this gets called to render each frame.
+        // The hash map only needs to be updated when adding or moving knights.
         let mut positions = HashMap::new();
         for knight in self.knights() {
-            *positions.entry(knight.position).or_insert(0) += 1
+            *positions.entry(knight.position).or_insert(HashMap::new()).entry(knight.owner).or_insert(0) += 1
         }
-        for (position, count) in positions {
+        for (position, counts) in positions {
             let (x_scale, y_scale) = scaling_for_board(drawable_size);
             let drawing_pos = game_board_pos_to_drawing_pos(position);
+            assert!(!counts.is_empty());
+            let owner = counts.keys().next().unwrap();
+            let count = *counts.get(owner).unwrap();
+            let player_color = owner.color();
 
             {
                 let x_margin = 3.0 / 8.0;
@@ -153,7 +162,7 @@ impl Draw for GameBoard {
                 drawing::draw_image(
                     &gl,
                     &shader_program,
-                    &knight_image,
+                    images.get_knight_image(&owner),
                     drawing::PositionSpec{
                         x: drawing_pos.x * x_scale - 0.5 * drawing_constants::HEXAGON_WIDTH * x_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (x_margin + x_offset),
                         y: drawing_pos.y * y_scale - 0.5 * drawing_constants::HEXAGON_HEIGHT * y_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (y_margin + y_offset)},
@@ -171,7 +180,7 @@ impl Draw for GameBoard {
                 drawing::draw_image(
                     &gl,
                     &shader_program,
-                    &knight_image,
+                    images.get_knight_image(&owner),
                     drawing::PositionSpec{
                         x: drawing_pos.x * x_scale - 0.5 * drawing_constants::HEXAGON_WIDTH * x_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (x_margin + x_offset),
                         y: drawing_pos.y * y_scale - 0.5 * drawing_constants::HEXAGON_HEIGHT * y_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (y_margin + y_offset)},
@@ -193,7 +202,7 @@ impl Draw for GameBoard {
                         y: drawing_pos.y * y_scale - 0.5 * drawing_constants::HEXAGON_HEIGHT * y_scale + drawing_constants::HEXAGON_WIDTH * x_scale * (y_margin + y_offset)},
                     drawing::ObjectOriginLocation::Center,
                     24,
-                    text_color.clone(),
+                    player_color,
                     format!("x{}", count));
             }
         }

@@ -426,8 +426,8 @@ fn main() {
             }
 
             // Draw player items
-            game_ui_data.game_board.draw_cities(&hw.gl, &image_program, (window_width, window_height), svg_images.get_city_image(&game_ui_data.player_color));
-            game_ui_data.game_board.draw_knights(&hw.gl, &image_program, (window_width, window_height), svg_images.get_knight_image(&game_ui_data.player_color), &mut text_drawing_baggage, game_ui_data.player_color.color());
+            game_ui_data.game_board.draw_cities(&hw.gl, &image_program, (window_width, window_height), &svg_images);
+            game_ui_data.game_board.draw_knights(&hw.gl, &image_program, (window_width, window_height), &svg_images, &mut text_drawing_baggage);
         }
 
         // Swap the window pixels with what we have just rendered
